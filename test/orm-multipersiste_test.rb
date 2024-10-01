@@ -1,6 +1,6 @@
-# test/test_orm_multipersist.rb
 require 'minitest/autorun'
-require 'orm-multipersist'  # Adjust this line to require your main gem file
+require 'orm-multipersist'
+require_relative 'test_helpers'
 
 class OrmMultipersistTest < Minitest::Test
   def test_that_it_has_a_version_number

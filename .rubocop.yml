@@ -1,0 +1,61 @@
+AllCops:
+  NewCops: disable
+  TargetRubyVersion: 3.0
+  Exclude:
+    - 'db/schema.rb'
+    - 'bin/*'
+    - 'node_modules/**/*'
+    - 'vendor/**/*'
+    - 'spec/**/*'  # If you use RSpec and don't want to lint your specs
+    - 'test/**/*'  # If you use Minitest and don't want to lint your tests
+
+Metrics/LineLength:
+  Max: 120  # Allow lines up to 120 characters
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes  # Prefer double quotes for strings
+
+Layout/LineLength:
+  Max: 120  # Max line length of 120 characters
+
+Layout/TrailingWhitespace:
+  Enabled: true  # Ensure no trailing whitespace
+
+Layout/EmptyLinesAroundBlockBody:
+  Enabled: false  # Don't require empty lines around blocks
+
+Metrics/BlockLength:
+  Max: 30  # Allow larger blocks, but still keep it reasonable
+
+Metrics/MethodLength:
+  Max: 20  # Allow methods to be slightly larger than the default (10 lines)
+
+Metrics/ClassLength:
+  Max: 200  # Allows for bigger classes without being too restrictive
+
+Style/FrozenStringLiteralComment:
+  Enabled: false  # Don't enforce frozen string literals
+
+Style/Documentation:
+  Enabled: false  # Don't require documentation comments for every class/module
+
+Lint/AmbiguousBlockAssociation:
+  Enabled: true  # Enable this to prevent bugs with ambiguous block associations
+
+Style/HashSyntax:
+  EnforcedStyle: ruby19  # Prefer the newer hash syntax (e.g., { a: 1 } instead of { :a => 1 })
+
+Naming/VariableName:
+  Enabled: false  # Disable overly strict variable naming rules
+
+Layout/IndentationConsistency:
+  Enabled: true  # Enforce consistent indentation
+
+Style/ClassAndModuleChildren:
+  EnforcedStyle: compact  # Prefer `class Foo::Bar` over nested classes
+
+Layout/EmptyLineAfterGuardClause:
+  Enabled: false  # Don't require an empty line after guard clauses
+
+Style/RedundantReturn:
+  Enabled: false  # Don't enforce removal of redundant `return` statements
