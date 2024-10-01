@@ -1,4 +1,12 @@
-require "bundler/gem_tasks"
+# frozen_string_literal: true
 
-# Add any custom rake tasks here
+# Rakefile
+require 'rake/testtask'
 
+Rake::TestTask.new do |t|
+  t.libs << 'test'
+  t.test_files = FileList['test/**/*_test.rb']
+  t.verbose = true
+end
+
+task default: :test
