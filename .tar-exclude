@@ -1,0 +1,5 @@
+vendor
+doc
+.git
+.yardoc
+.ruby-lsp
