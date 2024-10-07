@@ -17,3 +17,12 @@ Rake::TestTask.new do |t|
 end
 
 task default: :test
+
+task :pry do
+  require 'pry'
+  binding.pry
+end
+
+task :doc do
+  sh "yard doc lib/*.rb lib/**/*.rb"
+end
