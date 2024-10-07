@@ -11,3 +11,4 @@ Add this line to your application's Gemfile:
 gem 'orm-multipersist', git: 'https://github.com/dpruessner/orm-multipersist'
 ```
 
+Hi Daniel

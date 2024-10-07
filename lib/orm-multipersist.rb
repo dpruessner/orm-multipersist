@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'orm-multipersist/version'
+require 'active_model'
 
 ## Main module
 #
@@ -12,5 +12,7 @@ require_relative 'orm-multipersist/version'
 # original purpose of this project.  Additional types and persistences may be added on request.
 #
 module OrmMultipersist
-
 end
+
+require_relative 'orm-multipersist/version'
+require_relative 'orm-multipersist/entity'
