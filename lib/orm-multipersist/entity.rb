@@ -2,10 +2,56 @@ require "active_model"
 
 module OrmMultipersist
   #
-  # !!method multipersist_entity_klass
+  #
+  # @!method multipersist_entity_klass
   #   @return [Class] The base class that the Entity is mixed into (short-cutting the Backend inheritance)
   #
+  # @example Create a basic Person {Entity} as an Anonymous class (testing)
+  #
+  #     class Person
+  #       include OrmMultipersist::Entity
+  #
+  #       persist_table_name 'persons'
+  #       attribute :id, :integer, primary_key: true
+  #       attribute :name, :string
+  #     end
+  #
+  # @example Create a basic Person {Entity} as an Anonymous class (testing)
+  #
+  #     @person_klass = Class.new do
+  #       include OrmMultipersist::Entity
+  #
+  #       # Name with '__' prefix to indicate anonymous and not in Namespace
+  #       def self.name
+  #         "__PersonKlass"
+  #       end
+  #
+  #       persist_table_name 'persons'
+  #       attribute :id, :integer, primary_key: true
+  #       attribute :name, :string
+  #
+  #     end # Class.new(...) Peson
+  #
+  # @example Using the Person class with a persistence Backend
+  #
+  #     # Open the filename as an Sqlite3 database
+  #     @backend = OrmMultipersist::SqliteBackend::new(@filename)
+  #     # Create a class that is linked to Sqlite3 Backend persistence
+  #     @person_klass = @backend[Person]
+  #
+  #     person = @person_klass.new(name: "Jenny")
+  #     person.save!  #-> person.id is now populated by database auto_increment
+  #
+  #
+  #
   module Entity
+    # @!parse include ActiveModel::Model
+    # @!parse include ActiveModel::Attributes
+    # @!parse include ActiveModel::Dirty
+    # @!parse include ActiveModel::Validations
+    # @!parse extend ClassMethods
+    # @!parse extend BackendExt
+
     def self.included(base)
       # Include the ActiveModel modules if they are not already included
       [
@@ -43,6 +89,23 @@ module OrmMultipersist
       end
 
       # end of included()
+    end
+
+    def inspect
+      attrs = self.class.attribute_names.map do |a|
+        value = send(a)
+        str_value = "[unknown]"
+        if value.respond_to?(:inspect)
+          str_value = value.inspect
+        elsif value.respond_to?(:to_s)
+          str_value = value.to_s
+        elsif value.respond_to?(:name)
+          str_value = "[#{value.class}:#{value.name}]"
+        end
+        str_value = "#{str_value[0..17]}...#{str_value[-10..]}" if str_value.size > 20
+        "#{a}=#{str_value}"
+      end
+      "#<#{self.class.name} #{attrs.join(', ')}>"
     end
 
     # Check if record has been persisted to the back-end
@@ -150,8 +213,8 @@ module OrmMultipersist
       end
 
       # Sets the persistence table name
-      def set_table(name)
-        mulitpersist_attrs[:table_name] = name
+      def persist_table_name(name)
+        multipersist_attrs[:table_name] = name
       end
 
       # Gets the persistance table name
@@ -181,6 +244,32 @@ module OrmMultipersist
       # Pass the destroy-record thru to the client, passing the record and our class to the function
       def destroy_record(record)
         client.destroy_record(record, self)
+      end
+
+      def ensure_table!
+        client.ensure_table!(self)
+      end
+
+      def to_s
+        "#<Class:#{name}>"
+      end
+
+      def inspect
+        to_s
+      end
+
+      # Lookup a record by primary key
+      # @return [Entity|nil] instance of the record, looked up by primary key
+      def by_primary_key(value)
+        raise "No primary key defined for #{name}" unless has_primary_key?
+        client.lookup_by_primary_key(value, self)
+      end
+      alias_method :[], :by_primary_key
+
+      def from_persistence(persist_hash)
+        instance = new(persist_hash)
+        instance.set_persisted
+        instance
       end
     end
   end

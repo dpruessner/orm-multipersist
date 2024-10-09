@@ -1,6 +1,5 @@
 --private
 --protected
 --markup markdown
---embed-mixins
 --plugin classmethods
 --plugin activerecord
