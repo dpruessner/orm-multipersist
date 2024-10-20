@@ -2,6 +2,8 @@ require_relative "version"
 require_relative "entity"
 require_relative "backend"
 require_relative "recordset"
+require 'awesome_print'
+
 
 require "sqlite3"
 require "sequel"
@@ -222,17 +224,17 @@ module OrmMultipersist
         # Case: multiple attributes with directions (as kwargs)
         order = order.merge(kwarg)
 
-        puts "#{self.class}##{__method__}: ENTER (@order_by=#{@order_by.inspect}, order=#{order.inspect})"
+        #puts "#{self.class}##{__method__}: ENTER (@order_by=#{@order_by.inspect}, order=#{order.inspect})"
 
         # preserve original order_by ordering, but cause new values to delete and move the ordering to the back-of-the-line
         order_names = []
         order_values = {}
         @order_by.each do |name, direction|
-          puts "@order_by.each(name=#{name}, direction=#{direction})"
+          #puts "@order_by.each(name=#{name}, direction=#{direction})"
           order_names << name
           order_values[name] = direction
         end
-        puts "#{self.class}##{__method__}: order_names=#{order_names.inspect}, order_values=#{order_values.inspect}"
+        #puts "#{self.class}##{__method__}: order_names=#{order_names.inspect}, order_values=#{order_values.inspect}"
 
         order.each do |name, direction|
           name = name.to_sym
@@ -276,7 +278,6 @@ module OrmMultipersist
       #
       def and(conds = {}, **named)
         conds = conds.merge(named) unless named.empty?
-        puts "#{self.class}#and(): conditions=#{conds.inspect}"
         conds = mongo_to_sequel_conditions(conds)
 
         @dataset = @dataset.where(conds)
@@ -291,63 +292,57 @@ module OrmMultipersist
         self
       end
 
-      # ###You're working in Ruby and are developing an ORM library to work with multiple back-ends.  You're working on an element that implements the SQLite3 back-end for the ORM and it interfaces using Sequel.  Provide a function that will take MongoDB-style conditions (eg, `{ 'fieldname' => { '$lt' => 30, '$gt' => 10} }`) and create a Sequel::SQL::PlaceholderLiteralString such as `("fieldname" < ? AND "fieldname" > ?)` with parameters (30, 10).  This should work for most standard oerators expected in SQL and can omit complex document-related and set-related operators.
-      # ###Provide a placeholder for nesting in OR statements that will be `()`-wrapped contents of its conditions to ensure correct applicaiton of OR vs. order-of-operations without '()'s.
-      #
-      # Maps a condition from the MongoDB format (`{"fieldname" => { "operator" => value}}`) to a Sequel condition
+      # Map a condition from the MongoDB format (`{"fieldname" => { "operator" => value}}`) to a Sequel condition
       #
       # Sequel conditions are an array of conditions that can be  Sequel::SQL::PlaceholderLiteralString
       #
+      # @param [Hash] conditions the MongoDB conditions
+      # @return [Array<Sequel::SQL::PlaceholderLiteralString>] the Sequel conditions
+      #
       #
       def mongo_to_sequel_conditions(conditions)
-        puts "#{self.class}#mongo_to_sequel_conditions(): conditions=#{conditions.inspect}"
-        or_ary = []
-
-        ary = conditions.map do |key, value|
-          puts "#{self.class}#mongo_to_sequel_conditions(): key=#{key.inspect}, value=#{value.inspect}"
-
-          # Check for operator keys
-          if key == "$or"
-            puts "#{self.class}#mongo_to_sequel_conditions(): OPERATION is $or"
-            if value.is_a?(Array)
-              puts "#{self.class}#mongo_to_sequel_conditions(): value is an Array"
-              or_ary << (value.map { |v| mongo_to_sequel_conditions(v) }.inject(:|))
-              next
-            else
-              or_ary << mongo_to_sequel_conditions(value)
-            end
-            next
-          end
-
-          if value.is_a?(Hash)
-            puts "#{self.class}#mongo_to_sequel_conditions(): value is a Hash"
-            process_hash_condition(key, value)
-          elsif value.is_a?(Array)
-            puts "#{self.class}#mongo_to_sequel_conditions(): value is an Array"
-            value.map { |v| mongo_to_sequel_conditions(v) }.inject(:+)
-          else
-            puts "#{self.class}#mongo_to_sequel_conditions(): value is not a Hash; using literal"
-            Sequel.lit("\"#{key}\" = ?", value)
-          end
-        end
-        puts "#{self.class}#mongo_to_sequel_conditions(): ary=#{ary.inspect}"
-        expression = []
-
-        expression = if ary.size == 0
-                       []
-                     else
-                       ary.inject(:&)
-                     end
+        return mongo_to_sequel_conditions_internal(conditions)
       end
 
       private
 
-      def process_hash_condition(key, value)
-        puts "#{self.class}#mongo_to_sequel_conditions(): value is a Hash"
+      def mongo_to_sequel_conditions_internal(conditions, join_style = :and)
+        conditions = conditions.map do |key, value|
+          if key == "$or"
+            value.map { |v| mongo_to_sequel_conditions_internal(v) }.inject(:|)
+          elsif value.is_a?(Hash)
+            process_hash_condition(key, value)
+          else
+            # TODO: Maybe handle an array type here (for $in, $nin short-cut)
+            Sequel.lit("\"#{key}\" = ?", value)
+          end
+        end
 
+        if join_style == :and
+          conditions.inject(:&)
+        elsif join_style == :or
+          conditions.inject(:|)
+        else
+          raise ArgumentError, "Unsupported join_style: #{join_style.inspect}"
+        end
+      end
+
+      # Process a hash condition
+      # 
+      # @param [String] key the field name
+      # @param [Hash] value the value hash
+      #
+      # @example Basic usaage
+      #   process_hash_condition("fieldname", { "$lt" => 30 })
+      #   # => Sequel::SQL::PlaceholderLiteralString
+      #
+      #   process_hash_condition("fieldname", { "$lt" => 30, "$gt" => 10 })  # fieldname between 10 and 30 (exclusive)
+      #   # => Sequel::SQL::PlaceholderLiteralString
+      #
+      #   process_hash_condition("fieldname", { '$lt' => 30, '$or' => [ '$gt' => 10, '$eq' => 5 ] }) # fieldname between 10 and 30 (exclusive) or equal to 5
+      #
+      def process_hash_condition(key, value, join_style = :and)
         ary = value.map do |op, val|
-          puts "#{self.class}#mongo_to_sequel_conditions(): op=#{op.inspect}, val=#{val.inspect}"
-
           case op
           when "$eq"    then Sequel.lit("\"#{key}\" = ?", val)
           when "$ne"    then Sequel.lit("\"#{key}\" != ?", val)
@@ -358,19 +353,18 @@ module OrmMultipersist
           when "$in"    then Sequel.lit("\"#{key}\" IN ?", val)
           when "$nin"   then Sequel.lit("\"#{key}\" NOT IN ?", val)
           when "$regex" then Sequel.lit("\"#{key}\" REGEXP ?", val)
-          when "$or"    then process_logical_operator(val, "OR")
           else
-            raise "Unsupported operator: #{op}"
+            raise "Unsupported operator: #{op.inspect} for key #{key.inspect} with value #{val.inspect}"
           end
         end
-        puts "#{self.class}#mongo_to_sequel_conditions(): ary=#{ary.inspect}"
-        ary.inject(:&)
-      end
 
-      def process_logical_operator(conditions, operator)
-        raise ArgumnentError, "Unsupported logical operator: #{operator.inspect}" unless operator == "OR"
-        raise ArgumentError, "$or operator must operate on an array" unless conditions.is_a?(Array)
-        conditions.map { |v| mongo_to_sequel_conditions(v) }.inject(:|)
+        if join_style == :and
+          ary.inject(:&)
+        elsif join_style == :or
+          ary.inject(:|)
+        else
+          raise ArgumentError, "Unsupported join_style: #{join_style.inspect}"
+        end
       end
     end
   end

@@ -49,7 +49,6 @@ describe OrmMultipersist::SqliteBackend do
 
     it "provides a Backend-connected Class" do
       _(@client).wont_be_nil
-      db = @client.db
       persisted_person_klass = @client[@person_klass]
       _(persisted_person_klass).wont_be_nil
       person = persisted_person_klass.new
@@ -115,7 +114,6 @@ describe OrmMultipersist::SqliteBackend do
     end
 
     it "looks up record by primary key" do
-      db = @client.db
       person_klass = @client[@person_klass]
       person_klass.ensure_table!
 
@@ -171,7 +169,6 @@ describe OrmMultipersist::SqliteBackend do
     end
 
     it "creates an item" do
-      db = @client.db
       item_klass = @client[@item_klass]
       item_klass.ensure_table!
 
@@ -180,6 +177,7 @@ describe OrmMultipersist::SqliteBackend do
       _(item.save).must_equal true
       _(item.persisted?).must_equal true
     end
+
     it "updates an item" do
       db = @client.db
       #add_db_logging(db)
@@ -241,18 +239,18 @@ describe OrmMultipersist::SqliteBackend::SqliteRecordset do
   it "limits" do
     recordset = OrmMultipersist::SqliteBackend::SqliteRecordset.new(@client, @person_klass)
     recordset.limit(100)
-    _(recordset.dataset.sql).must_match /LIMIT 100/
+    _(recordset.dataset.sql).must_match(/LIMIT 100/)
   end
   it "offsets" do
     recordset = OrmMultipersist::SqliteBackend::SqliteRecordset.new(@client, @person_klass)
     recordset.offset(30)
-    _(recordset.dataset.sql).must_match /OFFSET 30/
+    _(recordset.dataset.sql).must_match(/OFFSET 30/)
   end
   it "limits and offsets " do
     recordset = OrmMultipersist::SqliteBackend::SqliteRecordset.new(@client, @person_klass)
     recordset.limit(100)
     recordset.offset(30)
-    _(recordset.dataset.sql).must_match /LIMIT 100.*OFFSET 30/
+    _(recordset.dataset.sql).must_match(/LIMIT 100.*OFFSET 30/)
   end
 
   it "returns an array of hashes for records" do
@@ -360,11 +358,53 @@ describe OrmMultipersist::SqliteBackend::SqliteRecordset do
 
     # Results 2 (same as 1)
     recordset = OrmMultipersist::SqliteBackend::SqliteRecordset.new(@client, @person_klass)
-    recordset.and(age: {'$gt' => 22}, city: 'Seattle', '$or' => [{age: 19}])
-    puts "SQL: #{recordset.dataset.sql}"
+    recordset.and(age: {'$gt' => 22}, city: 'Seattle')
+    recordset.or(age: 19)
+    #puts "SQL: #{recordset.dataset.sql}"
+    _(recordset.map{|v| v.name}).must_equal ['George', 'Belinda', 'Harry']
+    
+    # Results 3 (same as 1)
+    recordset = OrmMultipersist::SqliteBackend::SqliteRecordset.new(@client, @person_klass)
+    recordset.and(age: {'$gt' => 22}, city: 'Seattle')
+    recordset.or(age: 19)
+    #puts "SQL: #{recordset.dataset.sql}"
+    _(recordset.map{|v| v.name}).must_equal ['George', 'Belinda', 'Harry']
+
+    # Results 4 (same as 1)
+    recordset = OrmMultipersist::SqliteBackend::SqliteRecordset.new(@client, @person_klass)
+    recordset.where('$or' => [
+                   { age: {'$gt' => 22}, city: 'Seattle'},
+                   { age: 19 }])
+    #puts "SQL: #{recordset.dataset.sql}"
     _(recordset.map{|v| v.name}).must_equal ['George', 'Belinda', 'Harry']
   end
 
+  it "handles nested boolean expressions" do
+    person_klass = @client.client_for!(@person_klass)
+    _person = person_klass.new(name: 'George', age: 50, telephone: '555-1000', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
+    _person = person_klass.new(name: 'Margret', age: 20, telephone: '555-1111', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
+    _person = person_klass.new(name: 'Bill', age: 20, telephone: '555-2222', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
+    _person = person_klass.new(name: 'Belinda', age: 23, telephone: '555-0222', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
+    _person = person_klass.new(name: 'Harry', age: 19, telephone: '555-0222', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
+    _person = person_klass.new(name: 'Xavier', age: 79, telephone: '555-0222', zipcode: '48127', city: 'Detroit').tap{|e| e.save }
+
+    # Results 4 (same as 1)
+    recordset = OrmMultipersist::SqliteBackend::SqliteRecordset.new(@client, @person_klass)
+    recordset.where(age: {'$gt' => 22}, city: 'Seattle', '$or' => [
+      {age: 19, name: 'Harry'},
+      {age: 23, name: 'Belinda'},
+      {name: 'George'}
+    ])
+    #puts "SQL: #{recordset.dataset.sql}"
+    _(recordset.map{|v| v.name}).must_equal ['George', 'Belinda']
+
+    recordset = OrmMultipersist::SqliteBackend::SqliteRecordset.new(@client, @person_klass)
+    recordset.where(age: 50)
+    recordset.or(age: 20)
+    recordset.and(city: 'Seattle')
+    #puts "SQL: #{recordset.dataset.sql}"
+    _(recordset.map{|v| v.name}).must_equal ['George', 'Margret', 'Bill']
+  end
 
 end
 

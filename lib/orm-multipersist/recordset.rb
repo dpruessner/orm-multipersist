@@ -90,6 +90,10 @@ module OrmMultipersist
     def and(cond)
       raise NotImplementedError, "#{self.class} must implement #and"
     end
+    
+    def where(cond)
+      self.and(cond)
+    end
 
     # Expands dataset to also include records matching condition
     #

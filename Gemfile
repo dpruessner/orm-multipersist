@@ -14,4 +14,5 @@ group :development do
   gem "yard-classmethods"
   gem "rack"
   gem 'rackup'
+  gem 'awesome_print'
 end
