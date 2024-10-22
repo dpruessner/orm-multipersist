@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+$LOAD_PATH.push(File.expand_path("../../lib", File.dirname(__FILE__)))
+
+unless Dir.exist?('output')
+  Dir.mkdir('output')
+end
+
+require 'vector'
+require 'hnsw_index'
+require 'orm-multipersist/sqlite'
+
+vector_dimension = 2
+epoch = Time.now.to_i
+
+client = OrmMultipersist::SqliteBackend.new('output/test.sqlite3')
+Vector = client[Hnsw::Vector]
+
+index = Hnsw::Index.new(client)
+puts "Created index (#{index})..."
+
+# Add 1000 random vectors, tracking the epoch
+1000.times do |i|
+  vector = index.vector_klass.random(vector_dimension)
+  vector.external_id = "#{epoch}:#{i}"
+  index.add(vector)
+end

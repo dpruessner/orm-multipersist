@@ -2,7 +2,6 @@ require_relative "version"
 require_relative "entity"
 require_relative "backend"
 require_relative "recordset"
-require 'awesome_print'
 
 
 require "sqlite3"
@@ -95,6 +94,13 @@ module OrmMultipersist
 
     def destroy_record(record, orm_klass)
       raise NotImplementedError, "destroy_record must be implemented in #{self.class}"
+    end
+
+    # Return a recordset for the entity class
+    #
+    # @param [Class<OrmMultipersist::Entity + OrmMultipersist::BackendExt>] backend-connected entity class
+    def recordset(entity_klass)
+      SqliteRecordset.new(self, entity_klass)
     end
 
     def client_klass_detail

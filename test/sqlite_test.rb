@@ -406,5 +406,24 @@ describe OrmMultipersist::SqliteBackend::SqliteRecordset do
     _(recordset.map{|v| v.name}).must_equal ['George', 'Margret', 'Bill']
   end
 
+  it "raises when not connected to backend" do
+    _ { @person_klass.all }.must_raise RuntimeError
+  end
+
+  it "provides an ALL recordset" do
+    person_klass = @client[@person_klass]
+    _person = person_klass.new(name: 'George', age: 50, telephone: '555-1000', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
+    _person = person_klass.new(name: 'Margret', age: 20, telephone: '555-1111', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
+    _person = person_klass.new(name: 'Bill', age: 20, telephone: '555-2222', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
+    _person = person_klass.new(name: 'Belinda', age: 23, telephone: '555-0222', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
+    _person = person_klass.new(name: 'Harry', age: 19, telephone: '555-0222', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
+    _person = person_klass.new(name: 'Xavier', age: 79, telephone: '555-0222', zipcode: '48127', city: 'Detroit').tap{|e| e.save }
+    recordset = person_klass.all
+    _(recordset).must_be_kind_of OrmMultipersist::Recordset
+    _(recordset.count).must_equal 6
+    _(recordset.map{|v| v.name}).must_equal ['George', 'Margret', 'Bill', 'Belinda', 'Harry', 'Xavier']
+  end
+
+
 end
 

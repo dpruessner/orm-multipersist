@@ -6,9 +6,12 @@ end
 class Hnsw::Vector
   include OrmMultipersist::Entity
 
-  attribute :vector, Binary
-  attribute :level, Integer
-  attribute :id, Integer, primary_key: true
+  persist_table_name 'hnsw_vectors'
+
+  attribute :vector, :binary
+  attribute :level, :integer
+  attribute :id, :integer, primary_key: true
+  attribute :exgternal_id, :string
 
   def vector_array
     vector.unpack('f*')
@@ -26,11 +29,17 @@ class Hnsw::Vector
     Math.sqrt(ary.map { |x| x**2 }.sum)
   end
 
+  # Returns the dimension of the vector
+  def dimension
+    vector_array.size
+  end
+
   # Mutate and normalize the vector to have a magnitude of 1
   def normalize!
     ary = vector_array
     mag = magnitude(ary)
     self.vector_array = ary.map { |x| x / mag }
+    self
   end
 
   # Calculates the cosine similarity between this vector and another vector
@@ -52,9 +61,19 @@ class Hnsw::Vector
   end
 
   # Creates a random vector of the specified dimension of unity magnitude
-  def self.random(dimension = 512)
+  def self.random(dimension)
     vector = Array.new(dimension) { rand(-1.0..1.0) }
-    vector = vector.map { |x| x / vector.magnitude }
+    mag = Math.sqrt(vector.map { |x| x**2 }.sum)
+    vector = vector.map { |x| x / mag }
+    new(vector_array: vector)
+  end
+
+  # Creates a basis vector of the specified dimension with a 1 in the specified basis index
+  def self.basis(basis, dimension)
+    raise ArgumentError, "Basis index #{basis} is out of bounds for dimension #{dimension}" if basis >= dimension
+
+    vector = Array.new(dimension) { 0 }
+    vector[basis] = 1
     new(vector_array: vector)
   end
 end

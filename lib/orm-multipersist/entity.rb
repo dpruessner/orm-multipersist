@@ -250,6 +250,16 @@ module OrmMultipersist
         client.ensure_table!(self)
       end
 
+      # Return a recordset for the Entity that can be filtered, ordered, and limited
+      def where(query)
+        client.recordset(self).where(query)
+      end
+
+      # Return a recordset of all records for the Entity
+      def all
+        client.recordset(self)
+      end
+
       def to_s
         "#<Class:#{name}>"
       end
@@ -274,3 +284,5 @@ module OrmMultipersist
     end
   end
 end
+
+require_relative 'type'

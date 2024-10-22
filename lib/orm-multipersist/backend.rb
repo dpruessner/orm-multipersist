@@ -127,6 +127,13 @@ module OrmMultipersist
       raise NotImplementedError, "lookup_by_primary_key must be implemented in #{self.class.name}"
     end
 
+    ## Return a recordset that can be ordered, filtered, limited and offset for a given Entity Class
+    #
+    #
+    def recordset(entity_klass)
+      raise NotImplementedError, "recordset must be implemented in #{self.class.name}"
+    end
+
     ## Ensure that a table or store is created in the back-end
     #
     # @abstract
