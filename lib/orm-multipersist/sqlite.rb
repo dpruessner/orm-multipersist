@@ -292,6 +292,8 @@ module OrmMultipersist
         self
       end
 
+      private
+
       # Map a condition from the MongoDB format (`{"fieldname" => { "operator" => value}}`) to a Sequel condition
       #
       # Sequel conditions are an array of conditions that can be  Sequel::SQL::PlaceholderLiteralString
@@ -300,16 +302,10 @@ module OrmMultipersist
       # @return [Array<Sequel::SQL::PlaceholderLiteralString>] the Sequel conditions
       #
       #
-      def mongo_to_sequel_conditions(conditions)
-        return mongo_to_sequel_conditions_internal(conditions)
-      end
-
-      private
-
-      def mongo_to_sequel_conditions_internal(conditions, join_style = :and)
+      def mongo_to_sequel_conditions(conditions, join_style = :and)
         conditions = conditions.map do |key, value|
           if key == "$or"
-            value.map { |v| mongo_to_sequel_conditions_internal(v) }.inject(:|)
+            value.map { |v| mongo_to_sequel_conditions(v) }.inject(:|)
           elsif value.is_a?(Hash)
             process_hash_condition(key, value)
           else
