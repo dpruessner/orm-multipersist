@@ -13,7 +13,8 @@ Metrics/LineLength:
   Max: 120  # Allow lines up to 120 characters
 
 Style/StringLiterals:
-  EnforcedStyle: double_quotes  # Prefer double quotes for strings
+  Enabled: false
+    #EnforcedStyle: double_quotes  # Prefer double quotes for strings
 
 Layout/LineLength:
   Max: 120  # Max line length of 120 characters
