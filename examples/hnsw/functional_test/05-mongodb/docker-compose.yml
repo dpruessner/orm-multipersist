@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:latest
+    container_name: mongodb_container
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./mongo_data:/data/db
+        # Q: Does this attach the HOST's './mongo_data' directory?
+        # A: No, it creates a volume named 'mongo_data' in the docker volume system
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+
+        #volumes:
+        #  mongo_data:
+        #    driver: local
+        #
