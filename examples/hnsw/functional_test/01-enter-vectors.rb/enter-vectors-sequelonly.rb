@@ -13,6 +13,10 @@ class Array
     map { |x| x / mag }
   end
 
+  def serialize
+    pack('f*')
+  end
+
   def self.random(dimension)
     Array.new(dimension) { rand(-1.0..1.0) }
   end
@@ -22,24 +26,28 @@ def random_unit_vector(dimension)
   Array.random(dimension).normalize
 end
 
-require 'vector'
-require 'hnsw_index'
-require 'orm-multipersist/sqlite'
+require 'sequel'
+require 'sqlite3'
+
+DB = Sequel.sqlite('output/test.sqlite3')
+DB.create_table(:vectors) do
+  primary_key :id
+  Blob :vector, null: false
+  String :external_id, null: false
+  Integer :level, null: false
+
+  index :external_id, unique: true
+  index :level
+end
 
 vector_dimension = 2
 epoch = Time.now.to_i
-
-client = OrmMultipersist::SqliteBackend.new('output/test.sqlite3')
-Vector = client[Hnsw::Vector]
-
-index = Hnsw::Index.new(client)
-puts "Created index (#{index})..."
 
 ts = Time.now
 # Add 1000 random vectors, tracking the epoch
 100_000.times do |i|
   vector_array = random_unit_vector(vector_dimension)
-  index.add(vector_array, "#{epoch}:#{i}")
+  DB[:vectors].insert(vector: Sequel.blob(vector_array.to_s), external_id: i.to_s, level: 0)
 end
 
 dt = Time.now.-(ts).*(1e3)

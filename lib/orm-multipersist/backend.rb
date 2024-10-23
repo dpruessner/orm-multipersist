@@ -27,12 +27,12 @@ module OrmMultipersist
     # @return [Class] an {Entity} Class that inherits from `klass`` with singleton method to get a Backend instance
     #     for persisting its Entity records.
     #
-    def client_for(klass)
+    def client_for(klass, ensure_table: true)
       @client_mapped ||= {}
       raise "cannot make Backend-connected class for non-Entity classes" unless klass.include? OrmMultipersist::Entity
 
       connected_klass = @client_mapped[klass]
-      connected_klass = make_client_connected_klass(klass) if connected_klass.nil?
+      connected_klass = make_client_connected_klass(klass, ensure_table) if connected_klass.nil?
       return connected_klass
     end
 
@@ -43,8 +43,7 @@ module OrmMultipersist
 
       connected_klass = @client_mapped[klass]
       if connected_klass.nil?
-        connected_klass = make_client_connected_klass(klass)
-        connected_klass.ensure_table!
+        connected_klass = make_client_connected_klass(klass, true)
       end
       return connected_klass
     end
@@ -59,32 +58,31 @@ module OrmMultipersist
     # is connected to the {Backend} persistence layer.
     #
     # @param [Class<Entity>] class to derive a new *connected* type for
+    # @param [Boolean] ensure_table if true, ensure that a table is created in the back-end for the Entity
     #
     # @return [Class<Entity+BackendExt>] Class that has {BackendExt} methods and is connected to this {Backend} for
     #     persisting `klass` {Entity} records.
     #
-    def make_client_connected_klass(klass)
+    def make_client_connected_klass(klass, ensure_table)
       this = self
       # Create a new Klass that has singleton methods for persisting its Type into this client.
       new_klass = Class.new(klass) do
         define_singleton_method(:name) do
           # get `name` from the ORM Type (not the ORM-Persistence Type)
-          _detail = client.client_klass_detail
-          if _detail.nil? || _detail.empty?
+          the_klass_detail = client.client_klass_detail
+          if the_klass_detail.nil? || the_klass_detail.empty?
             klass.name
           else
-            "#{klass.name}@#{_detail}[#{table_name}]"
+            "#{klass.name}@#{the_klass_detail}[#{table_name}]"
           end
         end
         define_singleton_method(:client) do
           this
         end
       end
+
       @client_mapped[klass] = new_klass
-
-      # Ensure a table is created in the back-end
-      new_klass.ensure_table!
-
+      new_klass.ensure_table! if ensure_table
       return new_klass
     end
 

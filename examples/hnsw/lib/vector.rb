@@ -8,10 +8,10 @@ class Hnsw::Vector
 
   persist_table_name 'hnsw_vectors'
 
-  attribute :vector, :binary
-  attribute :level, :integer
+  attribute :vector, :binary, not_null: true
+  attribute :level, :integer, not_null: true
   attribute :id, :integer, primary_key: true
-  attribute :exgternal_id, :string
+  attribute :external_id, :string, not_null: true
 
   def vector_array
     vector.unpack('f*')

@@ -19,13 +19,28 @@ class Hnsw::Index
     @backend = backend
     raise ArugmentError, "Backend must be a valid ORM" unless @backend.is_a?(OrmMultipersist::Backend)
     @options = options
-    
     @vector_klass = @backend[Hnsw::Vector]
   end
 
-
-
   def to_s
     "Hnsw::Index(@[#{@backend.client_klass_detail}];  options: #{@options})"
+  end
+
+  # Add a vector to the index with the given external_id.
+  # The vector must be an array of numbers.
+  #
+  # @param vector [Array<Numeric>] the vector to add
+  # @param external_id [String] the external id to associate with the vector
+  # @raise [ArgumentError] if the vector is not an array of numbers
+  # @return [nil]
+  #
+  def add(vector, external_id)
+    raise ArgumentError, "Vector must be an array of numbers" unless vector.is_a?(Array)
+    vector = @vector_klass.new(vector_array: vector, external_id: external_id)
+    # TODO: do magic here
+    vector.level = 0
+    vector.external_id = external_id
+    vector.save # for now, just save the vector
+    nil
   end
 end

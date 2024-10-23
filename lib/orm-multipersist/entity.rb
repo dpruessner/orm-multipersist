@@ -1,5 +1,10 @@
 require "active_model"
 
+# Error to indicate the record is invalid in some way and that the record.errors should be checked
+# (**note**: `record.valid?` will clear the errors, so this error is useful to indicate that the record is invalid)
+#
+class OrmMultipersist::RecordInvalid < StandardError; end
+
 module OrmMultipersist
   #
   #
@@ -125,10 +130,11 @@ module OrmMultipersist
       changes_applied
     end
 
-    # Sets the PRIMARY KEY attribute to the value.  This looks up the primary key attribute name and sets that attribute to the value provided.
-    def set_primary_key_attribute(value)
-      raise "No primary key defined for #{self.class.name}" unless self.class.has_primary_key?
-      send("#{self.class.get_primary_key}=", value)
+    # Assign the value of the PRIMARY KEY attribute to the value.  
+    # Looks up the primary key attribute name and sets that attribute to the value provided.
+    def assign_primary_key_attribute(value)
+      raise "No primary key defined for #{self.class.name}" unless self.class.primary_key?
+      send("#{self.class.primary_key}=", value)
     end
 
     private
@@ -178,7 +184,12 @@ module OrmMultipersist
         run_callbacks :save do
           return false unless valid?
           return true unless changed?
-          self.class.create_record(self)
+          begin
+            self.class.create_record(self)
+          rescue RecordInvalid => _e
+            # skip setting persisted; record.errors will be set
+            return false
+          end
         end
       end
       set_persisted
@@ -198,8 +209,35 @@ module OrmMultipersist
     #   @return [Hash] a hash of attributes that can be mutated during ORM Type definition and used later in persistence
     #
     module ClassMethods
-      def attribute(name, type = nil, primary_key: false, **options)
-        multipersist_attrs[:primary_key] = name if primary_key
+      # Define an attribute for the Entity
+      #
+      # ## Options
+      #
+      # * `:primary_key` - indicate attribute is the primary key for the ORM Type (and will likely have a persistence-assigned value)
+      # * `:unique` - indicate attribute is unique in the persistence (will likely create an index in the persistence to enforce uniqueness)
+      #
+      def attribute(name, type = nil, **options)
+        if options[:primary_key]
+          multipersist_attrs[:primary_key] = name
+          options.delete(:primary_key)
+        end
+        if options[:not_null]
+          multipersist_attrs[:not_null_attributes] ||= []
+          multipersist_attrs[:not_null_attributes] << name
+          options.delete(:not_null)
+          # add in validation for nut_null
+          validates_presence_of name
+        end
+        if options[:unique]
+          multipersist_attrs[:unique_attributes] ||= []
+          multipersist_attrs[:unique_attributes] << name
+          options.delete(:unique)
+        end
+        if options[:index]
+          multipersist_attrs[:indexes] ||= []
+          multipersist_attrs[:indexes] << name
+          options.delete(:index)
+        end
         super(name, type, **options)
       end
 
@@ -223,12 +261,12 @@ module OrmMultipersist
       end
 
       # Gets the primary_key attribute in the persistence
-      def get_primary_key
+      def primary_key
         multipersist_attrs[:primary_key]
       end
 
       # Check if the ORM Type has a PrimaryKey
-      def has_primary_key?
+      def primary_key?
         multipersist_attrs[:primary_key].nil? == false
       end
 
@@ -271,7 +309,7 @@ module OrmMultipersist
       # Lookup a record by primary key
       # @return [Entity|nil] instance of the record, looked up by primary key
       def by_primary_key(value)
-        raise "No primary key defined for #{name}" unless has_primary_key?
+        raise "No primary key defined for #{name}" unless primary_key?
         client.lookup_by_primary_key(value, self)
       end
       alias_method :[], :by_primary_key

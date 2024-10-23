@@ -34,6 +34,7 @@ describe OrmMultipersist::SqliteBackend do
       #puts "DB=#{@filename}"
       @client = OrmMultipersist::SqliteBackend::new(@filename)
     end
+
     # Cleanup
     after do
       #puts "Unlinking #{@filename}"
@@ -128,7 +129,42 @@ describe OrmMultipersist::SqliteBackend do
       _(person.persisted?).must_equal true
       _(person.changed?).must_equal false
     end
-  end
+
+    it "fails to store a record with a non-null field missing" do
+      # reopen the class and add a unique attribute
+      @person_klass.class_eval do
+        attribute :email, :string, not_null: true
+      end
+      person_klass = @client.client_for!(@person_klass) # ensure table and indexes exist
+      person = person_klass.new(name: 'George').tap{|e| e.save }
+      _(person.persisted?).must_equal false
+      _(person.id).must_be_nil
+      _(person.errors).wont_be_nil
+      _(person.errors).wont_be :empty?
+      _(person.errors[:email]).wont_be_nil
+    end
+
+    it "creates a record with a unique attribute" do 
+      # reopen the class and add a unique attribute
+      @person_klass.class_eval do
+        attribute :email, :string, unique: true, not_null: true
+      end
+      person_klass = @client.client_for!(@person_klass) # ensure table and indexes exist
+      person = person_klass.new(name: 'Linda', email: 'email@zzz').tap{|e| e.save }
+      _(person.persisted?).must_equal true
+      _(person.id).wont_be_nil
+
+      # Try to create a duplicate
+      person = person_klass.new(name: 'Jao', email: 'email@zzz')
+      person.save
+      _(person.persisted?).must_equal false
+      _(person.errors).wont_be_nil
+      _(person.errors).wont_be :empty?
+      _(person.errors[:email]).wont_be_nil
+      _(person.id).must_be_nil
+    end
+
+  end # with primary key
 
 
 #####

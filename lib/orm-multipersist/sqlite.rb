@@ -3,7 +3,6 @@ require_relative "entity"
 require_relative "backend"
 require_relative "recordset"
 
-
 require "sqlite3"
 require "sequel"
 
@@ -18,6 +17,11 @@ module OrmMultipersist
       ActiveModel::Type::Boolean => :integer
     }.freeze
 
+    TYPE_SERIALIZATION = {
+      ActiveModel::Type::Binary => ->(v) { Sequel::Blob(v.to_s) },
+    }
+    DEFAULT_SERIALIZATION = ->(v) { v }
+
     include OrmMultipersist::Backend
 
     def initialize(db_path)
@@ -30,10 +34,29 @@ module OrmMultipersist
     def create_record(record, _orm_klass)
       dataset = record.class.client.db.dataset.from(record.class.table_name)
       values = {}
-      record.changed.each { |a| values[a.to_sym] = record.send(a.to_sym) }
-      rv = dataset.insert(values)
-      return unless record.class.has_primary_key?
-      record.set_primary_key_attribute(rv)
+
+      record.changed.each do |changed_attr|
+        attr_type = record.class.attribute_types[changed_attr]
+        attr_value = if attr_type.is_a?(ActiveModel::Type::Binary)
+                       Sequel.blob(record.send(changed_attr).to_s)
+                     else
+                       record.send(changed_attr)
+                     end
+        values[changed_attr.to_sym] = attr_value
+      end
+
+      begin
+        rv = dataset.insert(values)
+        return unless record.class.primary_key?
+        record.assign_primary_key_attribute(rv)
+      rescue Sequel::UniqueConstraintViolation => e
+        if e.message =~ /UNIQUE constraint failed: #{record.class.table_name}\.(.*)/
+          record.errors.add ::Regexp.last_match(1).to_sym, "is not unique"
+          raise OrmMultipersist::RecordInvalid, record
+        end
+        raise
+      end
+
       nil
     end
 
@@ -41,8 +64,8 @@ module OrmMultipersist
       dataset = record.class.client.db.dataset.from(record.class.table_name)
       values = {}
       record.changed.each { |a| values[a.to_sym] = record.send(a) }
-      if record.class.has_primary_key?
-        pkey = record.class.get_primary_key
+      if record.class.primary_key?
+        pkey = record.class.primary_key
         dataset = dataset.where(pkey => record.send(pkey))
       else
         where_values = record.attribute_names.each.map do |att_name|
@@ -66,21 +89,40 @@ module OrmMultipersist
       attributes = entity_klass.attribute_types
       db.create_table?(entity_klass.table_name) do
         primary_key_name = nil
-        primary_key_name = entity_klass.get_primary_key.to_s if entity_klass.has_primary_key?
+        primary_key_name = entity_klass.primary_key.to_s if entity_klass.primary_key?
+        unique_attributes = (entity_klass.multipersist_attrs[:unique_attributes] || []).dup
+        not_null_attributes = (entity_klass.multipersist_attrs[:not_null_attributes] || [])
+
+        index_list = (entity_klass.multipersist_attrs[:indexes] || []).dup
+
         attributes.each do |name, attr|
           # puts "Adding column #{name} of type #{attr.class} (#{attr})"
           column_type = TYPE_TRANSLATION[attr.class]
           raise ArgumentError, "Unsupported type #{attr.class} for column #{name}" if column_type.nil?
           options = {}
           options[:primary_key] = true if name == primary_key_name
+          if unique_attributes.include?(name.to_sym)
+            options[:unique] = true
+            unique_attributes.delete(name.to_sym)
+          end
+          if not_null_attributes.include?(name.to_sym)
+            options[:null] = false
+          end
+          #puts "Adding column #{name.inspect} of type #{column_type.inspect} with options #{options.inspect}"
           column name, column_type, options
+        end
+
+        # Create indexes (independent of any UNIQUE constraints)
+        index_list.each do |index_name|
+          puts "Creating index for #{index_name}"
+          index index_name
         end
       end
     end
 
     def lookup_by_primary_key(value, entity_klass)
       dataset = entity_klass.client.db.dataset.from(entity_klass.table_name)
-      pkey = entity_klass.get_primary_key
+      pkey = entity_klass.primary_key
       dataset = dataset.where(pkey => value).limit(1)
       data = dataset.to_a.first
       record = nil
