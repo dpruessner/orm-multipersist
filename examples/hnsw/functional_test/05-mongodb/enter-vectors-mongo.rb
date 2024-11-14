@@ -66,5 +66,5 @@ unless collection.indexes.get('level_1')
   collection.indexes.create_one({ level: 1 }, name: 'level_1')
 end
 
-vector_dimension = 2
-insert_records(collection, vector_dimension, 100_000)
+vector_dimension = 1024
+insert_records(collection, vector_dimension, 10_000, false)

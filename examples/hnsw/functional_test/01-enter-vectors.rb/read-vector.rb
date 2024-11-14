@@ -2,8 +2,9 @@
 require 'pry'
 $LOAD_PATH.push(File.expand_path("../../lib", File.dirname(__FILE__)))
 
-unless Dir.exist?('output')
-  Dir.mkdir('output')
+unless File.exist?('output/test.sqlite3')
+  puts "Need to run 'bundle exec ruby enter-vectors' first"
+  exit 1
 end
 
 class Array

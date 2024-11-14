@@ -26,11 +26,36 @@ def random_unit_vector(dimension)
   Array.random(dimension).normalize
 end
 
+def insert_vectors(db, dataset, only_one: false)
+  do_insert = Proc.new do |dataset|
+    dataset.each do |row|
+      vector_data = row[0].pack('f*')
+      external_id = row[1]
+      DB[:vectors].insert(vector: Sequel.blob(vector_data), external_id: external_id, level: 0)
+    end
+  end
+
+  ts = Time.now
+  if only_one
+    db.transaction do
+      do_insert.call(dataset)
+    end
+  else
+    do_insert.call(dataset)
+  end
+  dt = Time.now.-(ts).*(1e3)
+  puts "Added #{RECORD_COUNT} vectors in #{dt}ms (#{(dt * 1e3) / 100_000}us per vector) #{
+    only_one ? 'one by one' : 'in batch' }"
+end
+
+RECORD_COUNT = 100_000
+
 require 'sequel'
 require 'sqlite3'
 
 DB = Sequel.sqlite('output/test.sqlite3')
-DB.create_table(:vectors) do
+DB.drop_table?(:vectors)
+DB.create_table?(:vectors) do
   primary_key :id
   Blob :vector, null: false
   String :external_id, null: false
@@ -42,14 +67,18 @@ end
 
 vector_dimension = 2
 epoch = Time.now.to_i
-
-ts = Time.now
-# Add 1000 random vectors, tracking the epoch
-100_000.times do |i|
+record_data = RECORD_COUNT.times.map do |i|
   vector_array = random_unit_vector(vector_dimension)
-  DB[:vectors].insert(vector: Sequel.blob(vector_array.to_s), external_id: i.to_s, level: 0)
+  [vector_array, "#{epoch}:#{i}"]
 end
 
-dt = Time.now.-(ts).*(1e3)
-puts "Added 100_000 vectors in #{dt}ms"
+ts = Time.now
+
+insert_vectors(DB, record_data, only_one: true)
+
+# Add 1000 random vectors, tracking the epoch
+#100_000.times do |i|
+#  vector_array = random_unit_vector(vector_dimension)
+#  DB[:vectors].insert(vector: Sequel.blob(vector_array.to_s), external_id: i.to_s, level: 0)
+#end
 

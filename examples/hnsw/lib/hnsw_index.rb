@@ -32,7 +32,7 @@ class Hnsw::Index
   # @param vector [Array<Numeric>] the vector to add
   # @param external_id [String] the external id to associate with the vector
   # @raise [ArgumentError] if the vector is not an array of numbers
-  # @return [nil]
+  # @return [Vector]
   #
   def add(vector, external_id)
     raise ArgumentError, "Vector must be an array of numbers" unless vector.is_a?(Array)
@@ -41,6 +41,15 @@ class Hnsw::Index
     vector.level = 0
     vector.external_id = external_id
     vector.save # for now, just save the vector
-    nil
+    vector
+  end
+
+  # Bulk add vectors to the index.
+  #
+  # @param [Array<(Array,Numeric)>] an array of vector parameters
+  def add_batch(ary)
+    @vector_klass.client.db.transaction do
+      ary.map { |v| add(*v) }
+    end
   end
 end
