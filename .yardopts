@@ -1,0 +1,5 @@
+--private
+--protected
+--markup markdown
+--plugin classmethods
+--plugin activerecord

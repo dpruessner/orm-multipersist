@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+
+class Array
+  def self.random(dimension)
+    Array.new(dimension) { rand(-1.0..1.0) }
+  end
+
+  def magnitude
+    Math.sqrt(self.inject(0) { |sum, x| sum + x**2 })
+  end
+
+  def normalize
+    m = magnitude
+    map { |x| x / m }
+  end
+
+  # Get the distance(cosine similarity) between two vectors
+  def distance_csim(b)
+    if self.size != b.size
+      raise "The size of two vectors must be the same"
+    end
+    a = self
+    dot_product = a.zip(b).inject(0) { |sum, (x, y)| sum + x * y }
+    a_magnitude = a.magnitude
+    b_magnitude = b.magnitude
+    dot_product / (a_magnitude * b_magnitude)
+  end
+  def serialize
+    self.pack("f*")
+  end
+end
+
+# Find the nearest neighbor to a random vector
+def bench_search(dimension, count)
+  ary = count.times.map{ |_| Array.random(dimension) }
+  element = Array.random(dimension)
+  ts = Time.now
+  ary.min_by { |x| x.distance_csim(element) }
+  Time.now - ts
+end
+
+dimension = 2
+puts "Dimension: #{dimension}"
+puts "Time: #{bench_search(dimension, 10_000)}"
+
+dimension = 4096
+puts "Dimension: #{dimension}"
+puts "Time: #{bench_search(dimension, 10_000)}"
+
+File.open("foo.dat", "w") do |f|
+  f.write(
+

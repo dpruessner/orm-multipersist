@@ -29,5 +29,9 @@ task :pry do
 end
 
 task :doc do
-  sh "yard doc lib/*.rb lib/**/*.rb vendor/bundle/ruby/#{RUBY_VERSION}/gems/activemodel*/lib/**/*.rb"
+  orm_path = File.expand_path("../../lib", File.dirname(__FILE__))
+  puts "orm_path: #{orm_path}"
+  sh "yard doc lib/*.rb \
+    lib/**/*.rb vendor/bundle/ruby/#{RUBY_VERSION}/gems/activemodel*/lib/**/*.rb \
+    #{orm_path}/*.rb #{orm_path}/**/*.rb"
 end

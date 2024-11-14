@@ -1,0 +1,12 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+# Specify a gem from ../.. directory
+gem 'orm-multipersist', path: '../..'
+gem 'pry'
+gem 'rake'
+gem 'yard'
+gem 'minitest'
+gem 'minitest-reporters'
+gem 'mongo'
