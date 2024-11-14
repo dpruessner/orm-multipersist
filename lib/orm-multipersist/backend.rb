@@ -27,7 +27,7 @@ module OrmMultipersist
     # @return [Class] an {Entity} Class that inherits from `klass`` with singleton method to get a Backend instance
     #     for persisting its Entity records.
     #
-    def client_for(klass, ensure_table: true)
+    def client_for(klass, ensure_table: false)
       @client_mapped ||= {}
       raise "cannot make Backend-connected class for non-Entity classes" unless klass.include? OrmMultipersist::Entity
 

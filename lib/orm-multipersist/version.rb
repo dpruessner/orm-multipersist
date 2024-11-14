@@ -1,4 +1,4 @@
 # lib/orm-multipersist/version.rb
 module OrmMultipersist
-  VERSION = "0.1.0"
+  VERSION = "0.1.1"
 end

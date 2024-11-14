@@ -46,7 +46,7 @@ describe OrmMultipersist::Entity do
 
   it 'can have the primary_key set' do
     entity = @klass.new
-    entity.assign_primary_key_attribute(30)
+    entity.set_primary_key_attribute(30)
     _(entity.id).must_equal 30
   end
 
@@ -58,8 +58,8 @@ describe OrmMultipersist::Entity do
   end
 
   it 'has classmethod identifying primary key' do
-    _(@klass.primary_key?).must_equal true
-    _(@klass.primary_key).must_equal :id
+    _(@klass.has_primary_key?).must_equal true
+    _(@klass.get_primary_key).must_equal :id
   end
 
 end

@@ -207,26 +207,62 @@ module OrmMultipersist
         self
       end
 
+      # Select only specific attributes to pull from the back-end and 
+      # populate into the Entity.
+      #
+      # @param [Array] attributes attribute names to select (string or symbol)
+      # @return self
+      #
+      def project(*attributes)
+        super
+        @dataset = @dataset.select_all.select(*@project)
+        self
+      end
+
+      # Resets the projection to all attributes
+      # @return self
+      def project_all
+        super
+        @dataset = @dataset.select_all
+        self
+      end
+
+
       # Iterate over all the records
       #
-      # @yield [record] each record
-      # @yieldparam [Hash] record columns
+      # @yield [record] each record cast as the Entity
+      # @yieldparam [Entity] record as Entity
       #
       # @return [SqliteRecordset] self
       def each(&block)
         return enum_for(:each) unless block_given?
         @dataset.each do |record|
-          instance = @entity_klass.new(record)
+          instance = cast_as_entity(record)
           instance.set_persisted
           block.call(instance)
         end
+        self
+      end
+
+      def to_a
+        self.each.to_a
+      end
+
+      # Iterate over all records as hashes directly from the back-end
+      # @yield [record] each record
+      # @yieldparam [Hash] record row
+      # @return [SqliteRecordset] self
+      def each_record(&blk)
+        return enum_for(:each_record) unless block_given?
+        @dataset.each(&blk)
+        self
       end
 
       # Get all records as an array
       # @return [Array<Entity>] array of records
       def all
         @dataset.all.map do |record|
-          instance = @entity_klass.new(record)
+          instance = cast_as_entity(record)
           instance.set_persisted
           instance
         end
@@ -236,7 +272,7 @@ module OrmMultipersist
       def first
         record = @dataset.first
         unless record.nil?
-          instance = @entity_klass.new(record)
+          instance = cast_as_entity(record)
           instance.set_persisted
           return instance
         end
@@ -357,8 +393,12 @@ module OrmMultipersist
           elsif value.is_a?(Hash)
             process_hash_condition(key, value)
           else
-            # TODO: Maybe handle an array type here (for $in, $nin short-cut)
-            Sequel.lit("\"#{key}\" = ?", value)
+            if value.nil?
+              Sequel.lit("\"#{key}\" IS NULL")
+            else
+              # TODO: Maybe handle an array type here (for $in, $nin short-cut)
+              Sequel.lit("\"#{key}\" = ?", value)
+            end
           end
         end
 
@@ -387,7 +427,7 @@ module OrmMultipersist
       #
       def process_hash_condition(key, value, join_style = :and)
         ary = value.map do |op, val|
-          case op
+          case op.to_s
           when "$eq"    then Sequel.lit("\"#{key}\" = ?", val)
           when "$ne"    then Sequel.lit("\"#{key}\" != ?", val)
           when "$lt"    then Sequel.lit("\"#{key}\" < ?", val)
@@ -397,6 +437,7 @@ module OrmMultipersist
           when "$in"    then Sequel.lit("\"#{key}\" IN ?", val)
           when "$nin"   then Sequel.lit("\"#{key}\" NOT IN ?", val)
           when "$regex" then Sequel.lit("\"#{key}\" REGEXP ?", val)
+          when "$like"  then Sequel.lit("\"#{key}\" LIKE ?", val)
           else
             raise "Unsupported operator: #{op.inspect} for key #{key.inspect} with value #{val.inspect}"
           end

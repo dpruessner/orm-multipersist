@@ -38,11 +38,6 @@ puts "Created index (#{index})..."
 RECORD_COUNT = 100_000
 
 # Add 1000 random vectors, tracking the epoch
-# RECORD_COUNT.times do |i|
-#   vector_array = random_unit_vector(vector_dimension)
-#   index.add(vector_array, "#{epoch}:#{i}")
-# end
-
 puts "Creating #{RECORD_COUNT} random vectors..."
 record_data = RECORD_COUNT.times.map do |i|
   vector_array = random_unit_vector(vector_dimension)

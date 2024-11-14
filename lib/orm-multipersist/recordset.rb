@@ -20,6 +20,7 @@ module OrmMultipersist
       @table_name = entity_klass.table_name
       @limit = nil
       @order_by = []
+      @project = nil
     end
 
     # Get the table name the recordset is referencing
@@ -57,7 +58,7 @@ module OrmMultipersist
     # appropriate record.
     #
     # @yield [record] iterates over each record that matches
-    # @yieldparam [Hash] record one row
+    # @yieldparam [Entity] one entity; one row
     #
     # @abstract
     #
@@ -76,6 +77,11 @@ module OrmMultipersist
     # @abstract
     def all
       raise NotImplementedError, "#{self.class} has not implemented #all"
+    end
+
+    # Returns an Array of records. NOTE: this will evaluate the lazy query
+    def to_a
+      raise NotImplementedError, "#{self.class} has not implemented #to_a"
     end
 
     # Returns the first record in the recordset
@@ -132,10 +138,39 @@ module OrmMultipersist
       self
     end
 
+    # Select only specific attributes to pull from back-end and
+    # populate into the Entity.  NOTE: this may cause entity validation to fail
+    # if required fields are not populated.
+    #
+    # @param [Array] names attribute names to select
+    # @return self
+    #
+    def project(*names)
+      return if names.empty?
+      @project ||= []
+      @project.append(*names.map{ |v| v.to_s })
+      @project.uniq!
+      self
+    end
+
+    # Resets the projection to all attributes
+    # @return self
+    def project_all
+      @project = nil
+      self
+    end
+
     private
 
     def limit_count
       @limit
+    end
+
+    # Cast a record (Hash) into a record
+    def cast_as_entity(record)
+      # Refine down only to the projected fields
+      record = record.select{|k,_v| @project.member?(k.to_s) } if @project
+      @entity_klass.new(record)
     end
   end
 end
