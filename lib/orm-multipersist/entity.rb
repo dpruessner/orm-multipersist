@@ -1,4 +1,9 @@
+# typed: true
+
 require "active_model"
+require 'active_support/concern'
+
+require 'sorbet-runtime'
 
 # Error to indicate the record is invalid in some way and that the record.errors should be checked
 # (**note**: `record.valid?` will clear the errors, so this error is useful to indicate that the record is invalid)
@@ -6,8 +11,7 @@ require "active_model"
 class OrmMultipersist::RecordInvalid < StandardError; end
 
 module OrmMultipersist
-  #
-  #
+  # #
   # @!method multipersist_entity_klass
   #   @return [Class] The base class that the Entity is mixed into (short-cutting the Backend inheritance)
   #
@@ -50,6 +54,9 @@ module OrmMultipersist
   #
   #
   module Entity
+    extend T::Sig
+
+    extend ActiveSupport::Concern
     # @!parse include ActiveModel::Model
     # @!parse include ActiveModel::Attributes
     # @!parse include ActiveModel::Dirty
@@ -57,19 +64,56 @@ module OrmMultipersist
     # @!parse extend ClassMethods
     # @!parse extend BackendExt
 
-    def self.included(base)
-      # Include the ActiveModel modules if they are not already included
-      [
-        ActiveModel::Model,
-        ActiveModel::Attributes,
-        ActiveModel::Dirty,
-        ActiveModel::Validations,
-        EntityBase
-      ].each { |m| base.include(m) unless base.include?(m) }
+#    def self.included(base)
+#      $debug ||= File.open('/dev/ttys051', 'w')
+#      # Include the ActiveModel modules if they are not already included
+#      [
+#        ActiveModel::API,
+#        ActiveModel::Attributes,
+#        ActiveModel::Dirty,
+#        ActiveModel::Validations,
+#        EntityBase
+#      ].each { |m| 
+#        $debug.puts "Entity including: #{m} into #{base}"
+#        $debug.puts "  -- base ancestors: #{base.ancestors}"
+#        begin
+#          unless base.include?(m)
+#            base.class_eval do
+#              include m
+#            end
+#          end
+#          #base.include(m) unless base.include?(m)
+#        rescue Exception => e
+#          warn "Entity extending: #{m} into #{base} failed: #{e}"
+#          raise "Entity extending: #{m} into #{base} failed: #{e}"
+#        end
+#        }
+#    end
+
+    included do
+      include ActiveModel::Model
+      include ActiveModel::Attributes
+      include ActiveModel::Dirty
+      include ActiveModel::Validations
+      include EntityBase
+    end
+
+    # Check if the Entity is a Class, if so, this is not how Entity was meant to be used
+    def self.extended(base)
+      return unless base.is_a?(Class)
+      location = T.unsafe(caller_locations(1, 1)).first
+      raise RuntimeError, "#{self.class.name} extended into #{base.name} -- did you mean to include? (location: #{location})"
     end
   end
 
   module EntityBase
+    extend T::Sig
+    extend T::Helpers
+
+    requires_ancestor { Entity }
+
+
+    sig { params(base: T.class_of(Entity)).void }
     def self.included(base)
       # add in our ClassMethods
       base.extend(ClassMethods)
@@ -130,8 +174,11 @@ module OrmMultipersist
       changes_applied
     end
 
-    # Assign the value of the PRIMARY KEY attribute to the value.  
-    # Looks up the primary key attribute name and sets that attribute to the value provided.
+    # Assign the **primary key** _attribute_ a value.
+    # Looks up the primary key _attribute_ name and sets that attribute to the provided value.
+    #
+    # @raises [RuntimeError] if the Entity does not have {primary_key?}
+    #
     def assign_primary_key_attribute(value)
       raise "No primary key defined for #{self.class.name}" unless self.class.primary_key?
       send("#{self.class.primary_key}=", value)
@@ -320,7 +367,11 @@ module OrmMultipersist
         instance
       end
     end
+
+    # Entity::ClassMethods
+    mixes_in_class_methods(ClassMethods)
   end
 end
 
 require_relative 'type'
+
