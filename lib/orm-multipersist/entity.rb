@@ -11,7 +11,7 @@ require 'sorbet-runtime'
 class OrmMultipersist::RecordInvalid < StandardError; end
 
 module OrmMultipersist
-  # #
+  # 
   # @!method multipersist_entity_klass
   #   @return [Class] The base class that the Entity is mixed into (short-cutting the Backend inheritance)
   #
@@ -51,12 +51,17 @@ module OrmMultipersist
   #     person = @person_klass.new(name: "Jenny")
   #     person.save!  #-> person.id is now populated by database auto_increment
   #
-  #
-  #
   module Entity
     extend T::Sig
+    extend T::Helpers
 
-    extend ActiveSupport::Concern
+    requires_ancestor { ActiveModel::Model }
+    requires_ancestor { ActiveModel::Attributes }
+    requires_ancestor { T.class_of(ActiveModel::Attributes::ClassMethods) }
+    requires_ancestor { ActiveModel::Dirty }
+    requires_ancestor { ActiveModel::Validations }
+
+
     # @!parse include ActiveModel::Model
     # @!parse include ActiveModel::Attributes
     # @!parse include ActiveModel::Dirty
@@ -64,83 +69,33 @@ module OrmMultipersist
     # @!parse extend ClassMethods
     # @!parse extend BackendExt
 
-#    def self.included(base)
-#      $debug ||= File.open('/dev/ttys051', 'w')
-#      # Include the ActiveModel modules if they are not already included
-#      [
-#        ActiveModel::API,
-#        ActiveModel::Attributes,
-#        ActiveModel::Dirty,
-#        ActiveModel::Validations,
-#        EntityBase
-#      ].each { |m| 
-#        $debug.puts "Entity including: #{m} into #{base}"
-#        $debug.puts "  -- base ancestors: #{base.ancestors}"
-#        begin
-#          unless base.include?(m)
-#            base.class_eval do
-#              include m
-#            end
-#          end
-#          #base.include(m) unless base.include?(m)
-#        rescue Exception => e
-#          warn "Entity extending: #{m} into #{base} failed: #{e}"
-#          raise "Entity extending: #{m} into #{base} failed: #{e}"
-#        end
-#        }
-#    end
 
-    included do
-      include ActiveModel::Model
-      include ActiveModel::Attributes
-      include ActiveModel::Dirty
-      include ActiveModel::Validations
-      include EntityBase
-    end
-
-    # Check if the Entity is a Class, if so, this is not how Entity was meant to be used
-    def self.extended(base)
-      return unless base.is_a?(Class)
-      location = T.unsafe(caller_locations(1, 1)).first
-      raise RuntimeError, "#{self.class.name} extended into #{base.name} -- did you mean to include? (location: #{location})"
-    end
-  end
-
-  module EntityBase
-    extend T::Sig
-    extend T::Helpers
-
-    requires_ancestor { Entity }
-
-
-    sig { params(base: T.class_of(Entity)).void }
+    sig { params(base: Module).void }
     def self.included(base)
-      # add in our ClassMethods
+      puts "Included!"
+      base.include ActiveModel::Model
+      base.include ActiveModel::Attributes
+      base.include ActiveModel::Dirty
+      base.include ActiveModel::Validations
       base.extend(ClassMethods)
 
-      # define the multipersist_attrs
-      base.instance_variable_set(:@multipersist_attrs, {})
-      base.define_singleton_method(:multipersist_attrs) do
-        base.instance_variable_get(:@multipersist_attrs)
-      end
 
-      # define some lifecycle callbacks ()
       base.class_eval do
         define_model_callbacks :create
         define_model_callbacks :save
         define_model_callbacks :update
         define_model_callbacks :destroy
+        define_singleton_method(:multipersist_entity_klass) do
+          base
+        end
       end
-
-      # define a resolver to get the base class that the Entity is mixed into (short-cutting the Backend inheritance)
-      base.define_singleton_method(:multipersist_entity_klass) do
-        base
-      end
-
-      # end of included()
     end
 
     def inspect
+      T.assert_type!(self.class, ActiveModel::Attributes::ClassMethods)
+
+      klass = T.let(self.class, ActiveModel::Attributes::ClassMethods)
+      binding.pry
       attrs = self.class.attribute_names.map do |a|
         value = send(a)
         str_value = "[unknown]"
@@ -256,6 +211,16 @@ module OrmMultipersist
     #   @return [Hash] a hash of attributes that can be mutated during ORM Type definition and used later in persistence
     #
     module ClassMethods
+      extend T::Sig
+      extend T::Helpers
+
+      requires_ancestor { T.class_of(Entity) }
+
+
+      def multipersist_attrs
+        @multipersist_attrs ||= {}
+      end
+
       # Define an attribute for the Entity
       #
       # ## Options
@@ -361,8 +326,14 @@ module OrmMultipersist
       end
       alias_method :[], :by_primary_key
 
+      
+
+      sig { params(persist_hash: Hash).returns(T.attached_class) }
       def from_persistence(persist_hash)
-        instance = new(persist_hash)
+        T.assert_type!(self, T.class_of(Entity))
+
+        instance = self.new(persist_hash)
+        instance = T.let(super.new(persist_hash), ClassMethods[Entity])
         instance.set_persisted
         instance
       end
@@ -370,6 +341,9 @@ module OrmMultipersist
 
     # Entity::ClassMethods
     mixes_in_class_methods(ClassMethods)
+    mixes_in_class_methods(ActiveModel::Attributes::ClassMethods)
+    mixes_in_class_methods(ActiveModel::Validations::ClassMethods)
+
   end
 end
 
