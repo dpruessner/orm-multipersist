@@ -55,11 +55,14 @@ module OrmMultipersist
     extend T::Sig
     extend T::Helpers
 
-    requires_ancestor { ActiveModel::Model }
-    requires_ancestor { ActiveModel::Attributes }
-    requires_ancestor { T.class_of(ActiveModel::Attributes::ClassMethods) }
+    #requires_ancestor { ActiveModel::Model }
+    #requires_ancestor { ActiveModel::Attributes }
+    #requires_ancestor { T.class_of(ActiveModel::Attributes::ClassMethods) }
+    requires_ancestor { ActiveModel::API }
     requires_ancestor { ActiveModel::Dirty }
     requires_ancestor { ActiveModel::Validations }
+    requires_ancestor { T.class_of(Object) }
+    
 
 
     # @!parse include ActiveModel::Model
@@ -70,17 +73,24 @@ module OrmMultipersist
     # @!parse extend BackendExt
 
 
-    sig { params(base: Module).void }
     def self.included(base)
-      puts "Included!"
-      base.include ActiveModel::Model
-      base.include ActiveModel::Attributes
-      base.include ActiveModel::Dirty
-      base.include ActiveModel::Validations
+      base.include(ActiveModel::Model)
+      base.include(ActiveModel::Attributes)
+      base.include(ActiveModel::Dirty)
+      base.include(ActiveModel::Validations)
+      # add in our ClassMethods
       base.extend(ClassMethods)
+      base.prepend(self)
+
+      # define the multipersist_attrs
+      base.instance_variable_set(:@multipersist_attrs, {})
+      base.define_singleton_method(:multipersist_attrs) do
+        base.instance_variable_get(:@multipersist_attrs)
+      end
 
 
-      base.class_eval do
+      # define some lifecycle callbacks ()
+      T.cast(base, T.class_of(ActiveModel::Validations)).class_eval do
         define_model_callbacks :create
         define_model_callbacks :save
         define_model_callbacks :update
@@ -88,15 +98,16 @@ module OrmMultipersist
         define_singleton_method(:multipersist_entity_klass) do
           base
         end
+        define_singleton_method(:multipersist_entity_root?) do
+          self.__id__ == base.__id__
+        end
       end
+
     end
 
+    sig { returns(String) }
     def inspect
-      T.assert_type!(self.class, ActiveModel::Attributes::ClassMethods)
-
-      klass = T.let(self.class, ActiveModel::Attributes::ClassMethods)
-      binding.pry
-      attrs = self.class.attribute_names.map do |a|
+      attrs = T.cast(self.class, ActiveModel::Attributes::ClassMethods).attribute_names.map do |a|
         value = send(a)
         str_value = "[unknown]"
         if value.respond_to?(:inspect)
@@ -135,8 +146,10 @@ module OrmMultipersist
     # @raises [RuntimeError] if the Entity does not have {primary_key?}
     #
     def assign_primary_key_attribute(value)
-      raise "No primary key defined for #{self.class.name}" unless self.class.primary_key?
-      send("#{self.class.primary_key}=", value)
+      klass = T.cast(self.class, ClassMethods)
+      klass.primary_key?
+      raise "No primary key defined for #{klass.name}" unless klass.primary_key?
+      send("#{klass.primary_key}=", value)
     end
 
     private
@@ -157,13 +170,13 @@ module OrmMultipersist
         run_callbacks :update do
           validate!
           return true unless changed?
-          self.class.update_record(self)
+          T.cast(self.class, Entity::ClassMethods).update_record(self)
         end
       else
         run_callbacks :save do
           validate!
           return true unless changed?
-          self.class.create_record(self)
+          T.cast(self.class, Entity::ClassMethods).create_record(self)
         end
       end
       set_persisted
@@ -175,19 +188,21 @@ module OrmMultipersist
     # @return [Boolean] true if the record was saved (or unchanged), false if invalid or not saved
     #
     def save
+      klass = T.cast(self.class, Entity::ClassMethods)
+
       return false unless valid?
       return true unless changed?
       if persisted?
         run_callbacks :update do
           return true unless changed?
-          self.class.update_record(self)
+          klass.update_record(self)
         end
       else
         run_callbacks :save do
           return false unless valid?
           return true unless changed?
           begin
-            self.class.create_record(self)
+            klass.create_record(self)
           rescue RecordInvalid => _e
             # skip setting persisted; record.errors will be set
             return false
@@ -201,7 +216,7 @@ module OrmMultipersist
     def destroy
       return false unless persisted?
       run_callbacks :destroy do
-        self.class.destroy_record(self)
+        T.cast(self.class, Entity::ClassMethods).destroy_record(self)
       end
     end
 
@@ -214,11 +229,14 @@ module OrmMultipersist
       extend T::Sig
       extend T::Helpers
 
-      requires_ancestor { T.class_of(Entity) }
+      #def self.extended(base)
+      #end
 
+      requires_ancestor { Kernel }
+      requires_ancestor { T.class_of(ActiveModel::API) }
 
       def multipersist_attrs
-        @multipersist_attrs ||= {}
+        raise RuntimeError, "multipersist_attrs should be defined when the Entity creates the Entity-Base link (see Entity::included)"
       end
 
       # Define an attribute for the Entity
@@ -310,14 +328,6 @@ module OrmMultipersist
         client.recordset(self)
       end
 
-      def to_s
-        "#<Class:#{name}>"
-      end
-
-      def inspect
-        to_s
-      end
-
       # Lookup a record by primary key
       # @return [Entity|nil] instance of the record, looked up by primary key
       def by_primary_key(value)
@@ -326,14 +336,12 @@ module OrmMultipersist
       end
       alias_method :[], :by_primary_key
 
-      
-
-      sig { params(persist_hash: Hash).returns(T.attached_class) }
+      sig { params(persist_hash: Hash).returns(Entity) }
       def from_persistence(persist_hash)
-        T.assert_type!(self, T.class_of(Entity))
-
-        instance = self.new(persist_hash)
-        instance = T.let(super.new(persist_hash), ClassMethods[Entity])
+        instance = T.cast(self, T.all(
+                                  T::Class[ActiveModel::API],
+                                  T::Class[Entity]
+                                )).new(persist_hash)
         instance.set_persisted
         instance
       end
@@ -341,9 +349,8 @@ module OrmMultipersist
 
     # Entity::ClassMethods
     mixes_in_class_methods(ClassMethods)
-    mixes_in_class_methods(ActiveModel::Attributes::ClassMethods)
-    mixes_in_class_methods(ActiveModel::Validations::ClassMethods)
-
+    #mixes_in_class_methods(ActiveModel::Attributes::ClassMethods)
+    #mixes_in_class_methods(ActiveModel::Validations::ClassMethods)
   end
 end
 
