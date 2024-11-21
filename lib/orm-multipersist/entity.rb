@@ -54,14 +54,22 @@ module OrmMultipersist
   module Entity
     extend T::Sig
     extend T::Helpers
+    extend T::Generic
+
+    include ActiveModel::API
+    include ActiveModel::Attributes
+    include ActiveModel::Dirty
+    include ActiveModel::Validations
+
+    abstract!
 
     #requires_ancestor { ActiveModel::Model }
     #requires_ancestor { ActiveModel::Attributes }
     #requires_ancestor { T.class_of(ActiveModel::Attributes::ClassMethods) }
-    requires_ancestor { ActiveModel::API }
-    requires_ancestor { ActiveModel::Dirty }
-    requires_ancestor { ActiveModel::Validations }
-    requires_ancestor { T.class_of(Object) }
+    #requires_ancestor { ActiveModel::API }
+    #requires_ancestor { ActiveModel::Dirty }
+    #requires_ancestor { ActiveModel::Validations }
+    #requires_ancestor { T.class_of(Object) }
     
 
 
@@ -71,23 +79,25 @@ module OrmMultipersist
     # @!parse include ActiveModel::Validations
     # @!parse extend ClassMethods
     # @!parse extend BackendExt
+    #
+    sig { abstract.returns(Hash) }
+    def multipersist_attrs; end
 
 
     def self.included(base)
-      base.include(ActiveModel::Model)
-      base.include(ActiveModel::Attributes)
-      base.include(ActiveModel::Dirty)
-      base.include(ActiveModel::Validations)
-      # add in our ClassMethods
+    #  base.include(ActiveModel::Model)
+    #  base.include(ActiveModel::Attributes)
+    #  base.include(ActiveModel::Dirty)
+    #  base.include(ActiveModel::Validations)
+    #  # add in our ClassMethods
+    #  base.prepend(self)
       base.extend(ClassMethods)
-      base.prepend(self)
 
       # define the multipersist_attrs
       base.instance_variable_set(:@multipersist_attrs, {})
       base.define_singleton_method(:multipersist_attrs) do
         base.instance_variable_get(:@multipersist_attrs)
       end
-
 
       # define some lifecycle callbacks ()
       T.cast(base, T.class_of(ActiveModel::Validations)).class_eval do
