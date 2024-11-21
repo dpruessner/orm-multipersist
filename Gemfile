@@ -23,4 +23,5 @@ group :development do
   gem 'rackup'
   gem 'sorbet', '~> 0.5'
   gem 'tapioca', '~> 0.16'
+  gem 'pry-doc'
 end

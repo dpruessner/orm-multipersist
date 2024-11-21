@@ -188,12 +188,10 @@ describe OrmMultipersist::SqliteBackend do
 
       end # Class.new(...) preson
       @filename = "/tmp/sqlite_test-#{rand(36**8).to_s(36)}.sqlite"
-      #puts "DB=#{@filename}"
       @client = OrmMultipersist::SqliteBackend::new(@filename)
     end
     # Cleanup
     after do
-      #puts "Unlinking #{@filename}"
       File.unlink(@filename)
     end
 

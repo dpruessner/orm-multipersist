@@ -10,6 +10,14 @@ describe OrmMultipersist::Entity do
 
       attribute :id, :integer, primary_key: true
       attribute :color, :string
+
+
+      def self.anonymous_class?
+        true
+      end
+      def self.name
+        "AnonymousTestClass"
+      end
     end
   end
 
