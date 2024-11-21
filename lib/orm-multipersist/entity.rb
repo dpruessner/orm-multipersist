@@ -56,22 +56,18 @@ module OrmMultipersist
     extend T::Helpers
     extend T::Generic
 
-    include ActiveModel::API
-    include ActiveModel::Attributes
-    include ActiveModel::Dirty
-    include ActiveModel::Validations
+    #include ActiveModel::Model
+    #include ActiveModel::Attributes
+    #include ActiveModel::Dirty
+    #include ActiveModel::Validations
 
-    abstract!
-
-    #requires_ancestor { ActiveModel::Model }
-    #requires_ancestor { ActiveModel::Attributes }
+    requires_ancestor { ActiveModel::Model }
+    requires_ancestor { ActiveModel::Attributes }
     #requires_ancestor { T.class_of(ActiveModel::Attributes::ClassMethods) }
-    #requires_ancestor { ActiveModel::API }
-    #requires_ancestor { ActiveModel::Dirty }
-    #requires_ancestor { ActiveModel::Validations }
-    #requires_ancestor { T.class_of(Object) }
-    
-
+    requires_ancestor { ActiveModel::API }
+    requires_ancestor { ActiveModel::Dirty }
+    requires_ancestor { ActiveModel::Validations }
+    requires_ancestor { T.class_of(Object) }
 
     # @!parse include ActiveModel::Model
     # @!parse include ActiveModel::Attributes
@@ -80,17 +76,19 @@ module OrmMultipersist
     # @!parse extend ClassMethods
     # @!parse extend BackendExt
     #
-    sig { abstract.returns(Hash) }
-    def multipersist_attrs; end
+    sig { returns(Hash) }
+    def multipersist_attrs; 
+      raise RuntimeError, "something bad happened: multipersist_attrs should be defined when the Entity creates the Entity-Base link (see Entity::included)"
+    end
 
 
     def self.included(base)
-    #  base.include(ActiveModel::Model)
-    #  base.include(ActiveModel::Attributes)
-    #  base.include(ActiveModel::Dirty)
-    #  base.include(ActiveModel::Validations)
-    #  # add in our ClassMethods
-    #  base.prepend(self)
+      base.include(ActiveModel::Model)
+      base.include(ActiveModel::Attributes)
+      base.include(ActiveModel::Dirty)
+      base.include(ActiveModel::Validations)
+      # add in our ClassMethods
+      base.prepend(self)
       base.extend(ClassMethods)
 
       # define the multipersist_attrs
