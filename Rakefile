@@ -20,7 +20,12 @@ task :test do
     t.test_files = FileList["test/**/*_test.rb"]
     t.verbose = true
   end
-  subtask
+  begin
+    subtask
+  rescue Exception => e
+    puts "Errors in task...."
+    exit 1
+  end
 end
 
 task :pry do

@@ -188,12 +188,10 @@ describe OrmMultipersist::SqliteBackend do
 
       end # Class.new(...) preson
       @filename = "/tmp/sqlite_test-#{rand(36**8).to_s(36)}.sqlite"
-      #puts "DB=#{@filename}"
       @client = OrmMultipersist::SqliteBackend::new(@filename)
     end
     # Cleanup
     after do
-      #puts "Unlinking #{@filename}"
       File.unlink(@filename)
     end
 
@@ -447,7 +445,7 @@ describe OrmMultipersist::SqliteBackend::SqliteRecordset do
   end
 
   it "provides an ALL recordset" do
-    person_klass = @client[@person_klass]
+    person_klass = @client.client_for!(@person_klass)
     _person = person_klass.new(name: 'George', age: 50, telephone: '555-1000', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
     _person = person_klass.new(name: 'Margret', age: 20, telephone: '555-1111', zipcode: '98101', city: 'Seattle').tap{|e| e.save }
     _person = person_klass.new(name: 'Bill', age: 20, telephone: '555-2222', zipcode: '98101', city: 'Seattle').tap{|e| e.save }

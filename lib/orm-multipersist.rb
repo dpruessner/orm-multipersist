@@ -1,5 +1,7 @@
+# typed: true
 # frozen_string_literal: true
 
+require 'sorbet-runtime'
 require 'active_model'
 
 ## Main module
@@ -16,3 +18,17 @@ end
 
 require_relative 'orm-multipersist/version'
 require_relative 'orm-multipersist/entity'
+
+require 'active_model/attributes'
+
+#class OrmPerson
+#  include ActiveModel::Model
+#  include ActiveModel::Attributes
+#
+#  attribute :name, :string
+#end
+#
+#
+#p = OrmPerson.new(name: 'John')
+#p.name
+#

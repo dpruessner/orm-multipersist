@@ -2,6 +2,11 @@ module OrmMultipersist
   ## Mix-in to provide client/client_for relationship for Entities that persist into a Backend
   #
   # @example Create a **/dev/null** back-end
+  #
+  #    # Create a Backend that does nothing, but does implement the required interface.
+  #    # Objects can be created and manipulated, but saving will do nothing.
+  #    # Querying will return errors.
+  #    #
   #    class DevNullBackend
   #      include OrmMultipersist::Backend
   #
