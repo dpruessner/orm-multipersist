@@ -28,6 +28,13 @@ task :test do
   end
 end
 
+task :tc do
+  begin
+    sh 'bundle exec srb tc'
+  rescue; end
+end
+
+
 task :pry do
   require "pry"
   binding.pry
