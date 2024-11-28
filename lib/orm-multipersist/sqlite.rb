@@ -85,6 +85,11 @@ module OrmMultipersist
     end
 
     ## Ensure that a table exists in the SQLite database, using Sequel to create it
+    # 
+    # Will specify:
+    #   * primary key (if there is an attribute that is assigned primary_key)
+    #   * unique constraints (if there are attributes that are assigned unique)
+    #
     def ensure_table!(entity_klass)
       attributes = entity_klass.attribute_types
       db.create_table?(entity_klass.table_name) do
