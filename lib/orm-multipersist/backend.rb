@@ -1,6 +1,7 @@
 # typed: true
 
 module OrmMultipersist
+
   ## Mix-in to provide client/client_for relationship for Entities that persist into a Backend
   #
   # @example Create a **/dev/null** back-end
@@ -25,7 +26,7 @@ module OrmMultipersist
   #    vector.save #-> will call DevNullBackend::create_record
   #
   #
-  module Backend
+  class Backend
     extend T::Sig
     extend T::Helpers
     include Kernel
@@ -40,7 +41,7 @@ module OrmMultipersist
     # @return [Class] an {Entity} Class that inherits from `klass`` with singleton method to get a Backend instance
     #     for persisting its Entity records.
     #
-    sig { params(klass: T.class_of(OrmMultipersist::Entity), ensure_table: T::Boolean).returns(T.class_of(OrmMultipersist::Entity)) }
+    sig { params(klass: T.class_of(OrmMultipersist::Entity), ensure_table: T::Boolean).returns(T::Class[OrmMultipersist::Entity]) }
     def client_for(klass, ensure_table: false)
       @client_mapped ||= {}
       raise "cannot make Backend-connected class for non-Entity classes" unless klass.include? OrmMultipersist::Entity
@@ -50,7 +51,7 @@ module OrmMultipersist
       return connected_klass
     end
 
-    # Same as {#client_for} but ensures a table exists in the persistence
+    ## Same as {client_for} but ensures a table exists in the persistence
     sig { params(klass: T.class_of(OrmMultipersist::Entity)).returns(T.class_of(OrmMultipersist::Entity)) }
     def client_for!(klass)
       @client_mapped ||= {}
@@ -111,7 +112,7 @@ module OrmMultipersist
     #
     # @abstract
     #
-    sig { abstract.params(record: OrmMultipersist::Entity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
+    sig { abstract.params(record: OrmMultipersist::IEntity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
     def create_record(record, orm_klass); end
 
     # Updates a record already stored in the persistence layer.  Will only update {#changed} values.
@@ -119,7 +120,7 @@ module OrmMultipersist
     #
     # @abstract
     #
-    sig { abstract.params(record: OrmMultipersist::Entity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
+    sig { abstract.params(record: OrmMultipersist::IEntity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
     def update_record(record, orm_klass); end
 
     # Destroys a record already stored in the persistence layer.  Will destroy by `primary_key` if exists
@@ -127,7 +128,7 @@ module OrmMultipersist
     #
     # @abstract
     #
-    sig { abstract.params(record: OrmMultipersist::Entity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
+    sig { abstract.params(record: OrmMultipersist::IEntity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
     def destroy_record(record, orm_klass); end
 
     ## Return one record by looking up by primary key value

@@ -7,8 +7,8 @@ require "sqlite3"
 require "sequel"
 
 module OrmMultipersist
-  class SqliteBackend
-    include OrmMultipersist::Backend
+  class SqliteBackend < Backend
+    #include OrmMultipersist::Backend
 
     ## Type translation to Sequel/Sqlite3 types from ActiveModel types
     TYPE_TRANSLATION = {

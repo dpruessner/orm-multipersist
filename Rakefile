@@ -41,5 +41,5 @@ task :pry do
 end
 
 task :doc do
-  sh "yard doc lib/*.rb lib/**/*.rb vendor/bundle/ruby/#{RUBY_VERSION}/gems/activemodel*/lib/**/*.rb"
+  sh "yard doc --plugin yard-sorbet lib/*.rb lib/**/*.rb vendor/bundle/ruby/#{RUBY_VERSION}/gems/activemodel*/lib/**/*.rb"
 end

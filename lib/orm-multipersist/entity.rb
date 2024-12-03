@@ -11,6 +11,44 @@ require 'sorbet-runtime'
 class OrmMultipersist::RecordInvalid < StandardError; end
 
 module OrmMultipersist
+
+  # Interface as an Entity.  This is the public interface that does not use any internals.
+  # 
+  # The interface spans all Entity classes, so does not need to use the specialized attribute methods.
+  module IEntity
+    extend T::Sig
+    extend T::Helpers
+
+    interface!
+
+    # Save the record to the persistence back-end, but generates a {RecordInvalid} exception if the record is not valid
+    sig { abstract.void }
+    def save!; end
+
+    # Saves the record to the persistence back-end
+    sig { abstract.void }
+    def save; end
+
+    # Assign a value to the primary key attribute.  If the specific Entity does not have a primary key, an exception is raised.
+    sig { abstract.params(value: T.untyped).void }
+    def assign_primary_key_attribute(value); end
+
+
+    # Check if the record has been persisted to the back-end
+    sig { abstract.returns(T::Boolean) }
+    def new_record?; end
+
+    # Mark the record as persisted
+    sig { abstract.void }
+    def set_persisted; end
+
+    # Destroy the record in the persistence back-end
+    sig { abstract.void }
+    def destroy; end
+
+  end
+
+
   # 
   # @!method multipersist_entity_klass
   #   @return [Class] The base class that the Entity is mixed into (short-cutting the Backend inheritance)

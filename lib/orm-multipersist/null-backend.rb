@@ -28,18 +28,18 @@ module OrmMultipersist
   #    vector.save #-> will call DevNullBackend::create_record
   #
   #
-  class DevNullBackend
+  class NullBackend < OrmMultipersist::Backend
     extend T::Sig
-    include Backend
 
     # Create a record in the persistence layer.  This should update any primary-key or generated fields
     # and clear changes in the `record`.
     #
     # @abstract
     #
-    sig { override.params(record: Entity, _orm_klass: T.class_of(Entity)).void }
+    sig { override.params(record: IEntity, _orm_klass: T.class_of(Entity)).void }
     def create_record(record, _orm_klass)
-      record.destroy
+      record.set_persisted
+      nil
     end
 
     # Updates a record already stored in the persistence layer.  Will only update {#changed} values.
@@ -47,9 +47,10 @@ module OrmMultipersist
     #
     # @abstract
     #
-    sig { params(record: EntityBase, _orm_klass: T::Class[Entity]).void }
+    sig { override.params(record: IEntity, _orm_klass: T.class_of(Entity)).void }
     def update_record(record, _orm_klass)
       record.set_persisted
+      nil
     end
 
     # Destroys a record already stored in the persistence layer.  Will destroy by `primary_key` if exists
@@ -57,9 +58,12 @@ module OrmMultipersist
     #
     # @abstract
     #
-    def destroy_record(record, orm_klass)
-      raise NotImplementedError, "destroy_record must be implemented in #{self.class.name}"
+    # rubocop:disable Lint/UnusedMethodArgument
+    sig { override.params(record: IEntity, _orm_klass: T.class_of(Entity)).void }
+    def destroy_record(record, _orm_klass)
+      nil
     end
+    # rubocop:enable Lint/UnusedMethodArgument
 
     ## Return one record by looking up by primary key value
     #
@@ -92,16 +96,7 @@ module OrmMultipersist
     # @return [String] a string that describes the client
     #
     def client_klass_detail
-      ""
+      "NULL"
     end
-  end
-
-  module BackendExt
-    # @!method client
-    #   @return [Backend] the Backend instance that this Entity Class is connected to.
-    #
-    # @!method name
-    #   Overload the Class name to include details of *where* the persistence of the Class is connected to.
-    #   @return [String] the name of the Entity Class that is connected to the Backend instance.
   end
 end

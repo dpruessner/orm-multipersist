@@ -6,9 +6,9 @@ module OrmMultipersist
     # @param [Class<Entity>] entity_klass class to create records for
     #
     def initialize(backend, entity_klass)
-      unless backend.class.include?(OrmMultipersist::Backend)
+      unless backend.is_a?(OrmMultipersist::Backend)
         raise ArgumentError,
-              "#{backend} must include OrmMultipersist::Backend"
+              "#{backend} must derive from OrmMultipersist::Backend"
       end
       unless entity_klass.is_a?(Class) && entity_klass.include?(OrmMultipersist::Entity)
         raise ArgumentError,
@@ -96,7 +96,7 @@ module OrmMultipersist
     def and(cond)
       raise NotImplementedError, "#{self.class} must implement #and"
     end
-    
+
     def where(cond)
       self.and(cond)
     end
@@ -167,13 +167,14 @@ module OrmMultipersist
     end
 
     # Cast a record (Hash) into a record (Entity)
-    # 
+    #
     # @param [Hash] record_hash
     # @return [Entity]
     #
     def cast_as_entity(record_hash)
       # Refine down only to the projected fields
-      record = record_hash.select{|k,_v| @project.member?(k.to_s) } if @project
+      record = record_hash.dup
+      record.select! { |k, _v| @project.member?(k.to_s) } if @project
       @entity_klass.new(record)
     end
   end

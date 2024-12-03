@@ -24,4 +24,6 @@ group :development do
   gem 'sorbet', '~> 0.5'
   gem 'tapioca', '~> 0.16'
   gem 'pry-doc'
+  gem 'yard-sorbet'
+  gem 'yard-activerecord'
 end
