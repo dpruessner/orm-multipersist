@@ -14,21 +14,26 @@ require 'active_model'
 # original purpose of this project.  Additional types and persistences may be added on request.
 #
 module OrmMultipersist
-end
 
-require_relative 'orm-multipersist/version'
-require_relative 'orm-multipersist/entity'
+  # Eager load all the classes in the gem
+  # Returns constants that were loaded
+  #
+  # @return [Array] of constants that were loaded
+  #
+  def self.eager_load
+    konstants_orig = OrmMultipersist.constants
+    Dir.glob(File.join(File.dirname(__FILE__), 'orm-multipersist', '**', '*.rb')).each do |file|
+      require file
+    end
+    OrmMultipersist.constants.-(konstants_orig).sort
+  end
+end
 
 require 'active_model/attributes'
 
-#class OrmPerson
-#  include ActiveModel::Model
-#  include ActiveModel::Attributes
-#
-#  attribute :name, :string
-#end
-#
-#
-#p = OrmPerson.new(name: 'John')
-#p.name
-#
+require 'orm-multipersist/version'
+require 'orm-multipersist/entity'
+require 'orm-multipersist/backend'
+require 'orm-multipersist/recordset'
+require 'orm-multipersist/rbi-example'
+

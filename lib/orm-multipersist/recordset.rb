@@ -166,10 +166,14 @@ module OrmMultipersist
       @limit
     end
 
-    # Cast a record (Hash) into a record
-    def cast_as_entity(record)
+    # Cast a record (Hash) into a record (Entity)
+    # 
+    # @param [Hash] record_hash
+    # @return [Entity]
+    #
+    def cast_as_entity(record_hash)
       # Refine down only to the projected fields
-      record = record.select{|k,_v| @project.member?(k.to_s) } if @project
+      record = record_hash.select{|k,_v| @project.member?(k.to_s) } if @project
       @entity_klass.new(record)
     end
   end

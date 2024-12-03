@@ -62,12 +62,28 @@ module OrmMultipersist
     # @!parse include EntityBase
 
     def self.included(base)
+      unless base.is_a?(Class)
+        raise ArgumentError, "OrmMultipersist::Entity can only be included in a Class"
+      end
       base.include(ActiveModel::Model)
       base.include(ActiveModel::Attributes)
       base.include(ActiveModel::Dirty)
       base.include(ActiveModel::Validations)
       base.include(EntityBase)
     end
+    def self.extended(base)
+      raise RuntimeError.new("OrmMultipersist::Entity cannot be extended-- it should be 'include' in a Class")
+    end
+
+    def self.client
+      raise RuntimeError, "#{self.name} does not have a client defined"
+    end
+
+    sig { params(v: T.nilable(Integer)).returns(String) }
+    def multipersist_entityonly_function(v = 100)
+      "hi"
+    end
+
   end
 
   module EntityBase
@@ -75,11 +91,17 @@ module OrmMultipersist
     extend T::Sig
     extend T::Helpers
 
+    sig { returns(T::Array[String]) }
+    def multipersist_entitybase_function
+      [multipersist_entityonly_function]
+    end
+
 
     requires_ancestor { ActiveModel::Model }
     requires_ancestor { ActiveModel::Attributes }
     requires_ancestor { ActiveModel::Dirty }
     requires_ancestor { ActiveModel::Validations }
+    requires_ancestor { Entity }
     requires_ancestor { Object }
 
     sig { returns(Hash) }
@@ -87,6 +109,9 @@ module OrmMultipersist
       raise RuntimeError, "something bad happened: multipersist_attrs should be defined when the Entity creates the Entity-Base link (see Entity::included)"
     end
 
+    def multipersist_entity_root?
+      raise RuntimeError, "something bad happened: multipersist_entity_root? should be defined when the Entity classmethods are extended (see EntityBase::included)"
+    end
 
     def self.included(base)
       base.extend(ClassMethods)
@@ -367,3 +392,8 @@ end
 
 require_relative 'type'
 
+if $0 == __FILE__
+  class MyKlass
+    include OrmMultipersist::Entity
+  end
+end

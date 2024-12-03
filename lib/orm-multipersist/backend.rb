@@ -1,3 +1,5 @@
+# typed: true
+
 module OrmMultipersist
   ## Mix-in to provide client/client_for relationship for Entities that persist into a Backend
   #
@@ -24,6 +26,12 @@ module OrmMultipersist
   #
   #
   module Backend
+    extend T::Sig
+    extend T::Helpers
+    include Kernel
+
+    abstract!
+
     ## Get a Backend-connected child Class of klass that defines `#client` that points back to the Backend instance.
     #
     # Creates a new Klass that has singleton methods for persisting its records into this persistence layer.
@@ -32,6 +40,7 @@ module OrmMultipersist
     # @return [Class] an {Entity} Class that inherits from `klass`` with singleton method to get a Backend instance
     #     for persisting its Entity records.
     #
+    sig { params(klass: T.class_of(OrmMultipersist::Entity), ensure_table: T::Boolean).returns(T.class_of(OrmMultipersist::Entity)) }
     def client_for(klass, ensure_table: false)
       @client_mapped ||= {}
       raise "cannot make Backend-connected class for non-Entity classes" unless klass.include? OrmMultipersist::Entity
@@ -42,6 +51,7 @@ module OrmMultipersist
     end
 
     # Same as {#client_for} but ensures a table exists in the persistence
+    sig { params(klass: T.class_of(OrmMultipersist::Entity)).returns(T.class_of(OrmMultipersist::Entity)) }
     def client_for!(klass)
       @client_mapped ||= {}
       raise "cannot make Backend-connected class for non-Entity classes" unless klass.include? OrmMultipersist::Entity
@@ -68,11 +78,13 @@ module OrmMultipersist
     # @return [Class<Entity+BackendExt>] Class that has {BackendExt} methods and is connected to this {Backend} for
     #     persisting `klass` {Entity} records.
     #
+    sig { params(klass: T.class_of(OrmMultipersist::Entity), ensure_table: T::Boolean).returns(T.class_of(OrmMultipersist::Entity)) }
     def make_client_connected_klass(klass, ensure_table)
       this = self
       # Create a new Klass that has singleton methods for persisting its Type into this client.
-      new_klass = Class.new(klass) do
+      new_klass = Class.new(T.cast(klass, Class)) do
         define_singleton_method(:name) do
+          T.bind(self, OrmMultipersist::EntityBase::ClassMethods)
           # get `name` from the ORM Type (not the ORM-Persistence Type)
           the_klass_detail = client.client_klass_detail
           if the_klass_detail.nil? || the_klass_detail.empty?
@@ -87,6 +99,7 @@ module OrmMultipersist
       end
 
       @client_mapped[klass] = new_klass
+      new_klass = T.cast(new_klass, T.all(OrmMultipersist::EntityBase::ClassMethods, T.class_of(OrmMultipersist::Entity)))
       new_klass.ensure_table! if ensure_table
       return new_klass
     end
@@ -98,27 +111,24 @@ module OrmMultipersist
     #
     # @abstract
     #
-    def create_record(record, orm_klass)
-      raise NotImplementedError, "create_record must be implemented in #{self.class.name}"
-    end
+    sig { abstract.params(record: OrmMultipersist::Entity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
+    def create_record(record, orm_klass); end
 
     # Updates a record already stored in the persistence layer.  Will only update {#changed} values.
     #
     #
     # @abstract
     #
-    def update_record(record, orm_klass)
-      raise NotImplementedError, "update_record must be implemented in #{self.class.name}"
-    end
+    sig { abstract.params(record: OrmMultipersist::Entity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
+    def update_record(record, orm_klass); end
 
     # Destroys a record already stored in the persistence layer.  Will destroy by `primary_key` if exists
     # or by all attributes in `record` otherwise.
     #
     # @abstract
     #
-    def destroy_record(record, orm_klass)
-      raise NotImplementedError, "destroy_record must be implemented in #{self.class.name}"
-    end
+    sig { abstract.params(record: OrmMultipersist::Entity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
+    def destroy_record(record, orm_klass); end
 
     ## Return one record by looking up by primary key value
     #
@@ -126,24 +136,21 @@ module OrmMultipersist
     #
     # @abstract
     #
-    def lookup_by_primary_key(value, entity_klass)
-      raise NotImplementedError, "lookup_by_primary_key must be implemented in #{self.class.name}"
-    end
+    sig { abstract.params(value: T.untyped, entity_klass: T.class_of(OrmMultipersist::Entity)).returns(T.nilable(OrmMultipersist::Entity)) }
+    def lookup_by_primary_key(value, entity_klass); end
 
     ## Return a recordset that can be ordered, filtered, limited and offset for a given Entity Class
     #
     #
-    def recordset(entity_klass)
-      raise NotImplementedError, "recordset must be implemented in #{self.class.name}"
-    end
+    sig { abstract.params(entity_klass: T.class_of(OrmMultipersist::Entity)).returns(OrmMultipersist::Recordset) }
+    def recordset(entity_klass); end
 
     ## Ensure that a table or store is created in the back-end
     #
     # @abstract
     #
-    def ensure_table!(entity_klass)
-      raise NotImplementedError, "ensure_table! must be implemented in #{self.class.name}"
-    end
+    sig { abstract.params(entity_klass: T.class_of(OrmMultipersist::Entity)).void }
+    def ensure_table!(entity_klass); end
 
     ## Overload this function to provide details to client-classes' #{inspect} to report details of the
     # persistence destination

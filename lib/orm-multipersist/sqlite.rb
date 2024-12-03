@@ -8,6 +8,8 @@ require "sequel"
 
 module OrmMultipersist
   class SqliteBackend
+    include OrmMultipersist::Backend
+
     ## Type translation to Sequel/Sqlite3 types from ActiveModel types
     TYPE_TRANSLATION = {
       ActiveModel::Type::Integer => :integer,
@@ -22,7 +24,6 @@ module OrmMultipersist
     }
     DEFAULT_SERIALIZATION = ->(v) { v }
 
-    include OrmMultipersist::Backend
 
     def initialize(db_path)
       @db_path = db_path
