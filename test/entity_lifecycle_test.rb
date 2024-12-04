@@ -87,6 +87,39 @@ class TestClass1
   attr_accessor :hook_order
 end
 
+class TimestampTestClass
+  extend T::Sig
+  include ActiveModel::Model
+  include OrmMultipersist::Entity
+  include OrmMultipersist::EntityTimestamps
+
+  T.cast(self, T.class_of(ActiveModel::Attributes)).tap do |k|
+    k.attribute :id, :integer, primary_key: true
+    k.attribute :color, :string
+  end
+end
+
+##  # Patch our 'Time.now' method to return a thread-local time if defined
+##  Time.define_singleton_method(:now) do
+##    ttime = Thread.current[:local_time]
+##    return ttime unless ttime.nil?
+##    Time.new
+##  end
+##  
+##  Time.define_singleton_method(:now=) do |t|
+##    Thread.current[:local_time] = t
+##  end
+##  
+class Time
+  def self.now
+    ttime = Thread.current[:local_time]
+    return ttime unless ttime.nil?
+    Time.new
+  end
+  def self.now=(t)
+    Thread.current[:local_time] = t
+  end
+end
 
 
 
@@ -117,50 +150,53 @@ describe OrmMultipersist::Entity do
                                             :before_update, :around_update, :around_update, :after_update]
       #_(obj.send('hook_state')).must_equal :after_update
     end
+  end
 
-##     it 'has a settable id' do
-##       entity = @klass.new
-##       _(entity).must_respond_to(:id)
-##       _(entity).must_respond_to(:id=)
-## 
-##       entity.id = 100
-##       _(entity.id).must_equal 100
-##     end
-## 
-##     it 'tracks changes of an attribute' do
-##       entity = @klass.new
-##       entity.id = 100
-##       _(entity.changes).must_equal({"id" => [nil, 100]})
-##       entity.id = 200
-##       _(entity.changes).must_equal({"id" => [nil, 200]})
-##     end
-## 
-##     it 'tracks persistence' do
-##       entity = @klass.new
-##       entity.id = 100
-##       _(entity.persisted?).must_equal false
-##       entity.set_persisted
-##       _(entity.persisted?).must_equal true
-##     end
-## 
-## 
-##     it 'can have the primary_key set' do
-##       entity = @klass.new
-##       entity.assign_primary_key_attribute(30)
-##       _(entity.id).must_equal 30
-##     end
-## 
-##     it 'can be created by a hash' do
-##       entity = @klass.new(id: 10, color: 'red')
-##       _(entity.id).must_equal 10
-##       _(entity.color).must_equal 'red'
-##       _(entity.changes).must_equal({"id" => [nil, 10], "color" => [nil, "red"]})
-##     end
-## 
-##     it 'has classmethod identifying primary key' do
-##       _(@klass.primary_key?).must_equal true
-##       _(@klass.primary_key).must_equal :id
-##     end
+  describe 'timestamp lifecycle' do
+    before do
+      @klass = TimestampTestClass
 
+      # Checks that our Time.now hack works
+      the_now = Time.now
+      Time.now = the_now
+      _(Time.now).must_equal the_now
+      Time.now = nil
+      _(Time.now).wont_equal the_now
+    end
+
+    it 'updates timestamps with changes' do
+      @backend = OrmMultipersist::NullBackend.new
+      klass = @backend.client_for(@klass)
+      obj = T.cast(klass.new, OrmMultipersist::EntityBase)
+
+      the_now = Time.now
+      Time.now = the_now
+      obj.save!
+      _(obj.send('created_at')).wont_be_nil
+      _(obj.send('updated_at')).wont_be_nil
+      _(obj.persisted?).must_equal true
+      _(obj.send('created_at')).must_equal obj.send('updated_at')
+      _(obj.send('created_at')).must_equal the_now
+
+      # Now do update, make sure our time changes
+      first_now = the_now
+      the_now = Time.new
+      Time.now = the_now
+      obj.send('color=', 'red')
+      _(obj.changed?).must_equal true
+      obj.save!
+      _(obj.changed?).must_equal false
+      _(obj.changed?).must_equal false
+      _(obj.send('created_at')).must_equal first_now
+      _(obj.send('updated_at')).must_equal the_now
+
+      final_now = the_now + 1
+      Time.now = final_now
+      obj.save!
+      _(obj.send('created_at')).must_equal first_now
+      _(obj.send('updated_at')).must_equal the_now  # no change
+
+    end
   end
 end
+

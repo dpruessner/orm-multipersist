@@ -92,6 +92,17 @@ module OrmMultipersist
   #   * `update` - before, around, after updating a record in the persistence
   #   * `destroy` - before, around, after destroying a record in the persistence
   #
+  # @example Using the Person class with a lifecycle callback
+  #
+  #    class Person
+  #      include OrmMultipersist::Entity
+  #      persist_table_name 'persons'
+  #      attribute :id, :integer, primary_key: true
+  #      attribute :name, :string
+  #
+  #      
+  #
+  #
   # *NOTE*: You cannot reason about the order of callbacks (around vs. before/after):
   # you can only assume that the `around` callback will wrap the the time ahead of and after 
   # the object is persisted.  The ordering of calling before/around and after/around is dependent on
@@ -101,6 +112,8 @@ module OrmMultipersist
   module Entity
     extend T::Sig
     extend T::Helpers
+
+    requires_ancestor { Object }
 
     # @!parse include ActiveModel::Model
     # @!parse include ActiveModel::Attributes
@@ -132,6 +145,7 @@ module OrmMultipersist
     end
   end
 
+
   module EntityBase
     extend T::Sig
     extend T::Helpers
@@ -146,7 +160,6 @@ module OrmMultipersist
     requires_ancestor { ActiveModel::Dirty }
     requires_ancestor { ActiveModel::Validations }
     requires_ancestor { Entity }
-    requires_ancestor { Object }
 
     sig { returns(Hash) }
     def multipersist_attrs
@@ -167,9 +180,20 @@ module OrmMultipersist
       end
 
       T.cast(base, T.class_of(ActiveModel::Validations)).class_eval do
-        define_model_callbacks :create
-        define_model_callbacks :update
-        define_model_callbacks :destroy
+        define_model_callbacks :create, only: [:before, :after, :around]
+        define_model_callbacks :update, only: [:before, :after, :around]
+        define_model_callbacks :destroy, only: [:before, :after, :around]
+
+#        [:create, :update, :destroy].each do |callback|
+#          define_singleton_method("before_#{callback}") do |method=nil, &block|
+#            set_callback(callback, :before, method, &block)
+#          end
+#          define_singleton_method("after_#{callback}") do |method=nil, &block|
+#            set_callback(callback, :after, method, &block)
+#          end
+#        end
+
+
         define_singleton_method(:multipersist_entity_klass) do
           base
         end
@@ -250,7 +274,9 @@ module OrmMultipersist
       else
         run_callbacks :create do
           validate!
-          return true unless changed?
+          ## CHANGE: we still continue to save the element because there may be a primary key
+          #          and having a mostly-blank may be what library-user wants.
+          # return true unless changed?
           T.cast(self.class, EntityBase::ClassMethods).create_record(self)
         end
       end
@@ -275,7 +301,9 @@ module OrmMultipersist
       else
         run_callbacks :create do
           return false unless valid?
-          return true unless changed?
+          ## CHANGE: we still continue to save the element because there may be a primary key
+          #          and having a mostly-blank may be what library-user wants.
+          # return true unless changed?
           begin
             klass.create_record(self)
           rescue RecordInvalid => _e
@@ -430,12 +458,37 @@ module OrmMultipersist
     #mixes_in_class_methods(ActiveModel::Attributes::ClassMethods)
     #mixes_in_class_methods(ActiveModel::Validations::ClassMethods)
   end
+
+  ## Mix in timestamp attributes for the Entity
+  module EntityTimestamps
+    extend T::Sig
+    extend T::Helpers
+
+    requires_ancestor { Entity }
+
+    def self.included(base)
+      base.attribute :created_at, :datetime
+      base.attribute :updated_at, :datetime
+
+      base.before_create :set_created_at
+      base.before_update :set_updated_at
+    end
+
+    # Set the created_at and updated_at timestamps during
+    # the lifecycle callbacks when creating a new record.
+    def set_created_at
+      now = Time.now
+      self.send('created_at=', now)
+      self.send('updated_at=', now)
+    end
+
+    # Sets the updated_at timestamp during the lifecycle callbacks
+    # when updating a record (if changed).
+    #
+    def set_updated_at
+      self.send('updated_at=', Time.now) if self.send(:changed?)
+    end
+  end
 end
 
 require_relative 'type'
-
-if $0 == __FILE__
-  class MyKlass
-    include OrmMultipersist::Entity
-  end
-end
