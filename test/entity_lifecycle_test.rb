@@ -28,6 +28,7 @@ class TestClass1
   def initialize(params={})
     super
     @hook_state = nil
+    @hook_order = []
   end
 
   def self.anonymous_class?
@@ -42,46 +43,79 @@ class TestClass1
     end
   end
 
-  # Create lifecycle hooks for create
-  def beore_create_hook
-    do_assert_hook_state! nil
-    @hook_state = :before_create
+  set_callback :create, :before, :before_create
+  set_callback :create, :after, :after_create
+  set_callback :create, :around, :around_create
+
+  set_callback :update, :before, :before_update
+  set_callback :update, :after, :after_update
+  set_callback :update, :around, :around_update
+
+
+  # create lifecycle hooks for create
+  def before_create
+    @hook_order << :before_create
   end
-  def after_create_hook
-    do_assert_hook_state! :around_create
-    @hook_state = :after_create
+  def after_create
+    @hook_order << :after_create
   end
-  def around_create_hook
-    do_assert_hook_state! :before_create
-    @hook_state = :around_create
+  def around_create
+    @hook_order << :around_create
+    if block_given?
+      yield
+      @hook_order << :around_create
+    end
   end
 
+  def before_update
+    @hook_order << :before_update
+    @hook_state = :before_update
+  end
+  def around_update
+    @hook_order << :around_update
+    if block_given?
+      yield
+      @hook_order << :around_update
+    end
+  end
+  def after_update
+    @hook_order << :after_update
+  end
+
+
   attr_accessor :hook_state
+  attr_accessor :hook_order
 end
 
 
 
 
 describe OrmMultipersist::Entity do
-  describe 'lifecycle-create' do
+  describe 'lifecycle-save' do
+
     before do
       @klass = TestClass1
-    end
-
       @run_id = SecureRandom.uuid
-
+    end
 
     it 'instantiates' do
       entity = @klass.new
       _(entity).wont_be_nil
     end
 
-    it 'writes to a null backend' do
+    it 'calls lifecycle hooks' do
       @backend = OrmMultipersist::NullBackend.new
       klass = @backend.client_for(@klass)
-      binding.pry
-      entity = T.cast(klass.new, OrmMultipersist::IEntity)
-      entity.save
+      obj = T.cast(klass.new, OrmMultipersist::EntityBase)
+      obj.send('color=', 'red')
+      obj.save!
+      _(obj.send('hook_order')).must_equal [:before_create, :around_create, :around_create, :after_create]
+      # update
+      obj.send('color=', 'blue')
+      obj.save!
+      _(obj.send('hook_order')).must_equal [:before_create, :around_create, :around_create, :after_create, 
+                                            :before_update, :around_update, :around_update, :after_update]
+      #_(obj.send('hook_state')).must_equal :after_update
     end
 
 ##     it 'has a settable id' do

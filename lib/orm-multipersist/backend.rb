@@ -112,7 +112,7 @@ module OrmMultipersist
     #
     # @abstract
     #
-    sig { abstract.params(record: OrmMultipersist::IEntity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
+    sig { abstract.params(record: OrmMultipersist::EntityBase, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
     def create_record(record, orm_klass); end
 
     # Updates a record already stored in the persistence layer.  Will only update {#changed} values.
@@ -120,7 +120,7 @@ module OrmMultipersist
     #
     # @abstract
     #
-    sig { abstract.params(record: OrmMultipersist::IEntity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
+    sig { abstract.params(record: OrmMultipersist::EntityBase, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
     def update_record(record, orm_klass); end
 
     # Destroys a record already stored in the persistence layer.  Will destroy by `primary_key` if exists
@@ -128,7 +128,7 @@ module OrmMultipersist
     #
     # @abstract
     #
-    sig { abstract.params(record: OrmMultipersist::IEntity, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
+    sig { abstract.params(record: OrmMultipersist::EntityBase, orm_klass: T.class_of(OrmMultipersist::Entity)).void }
     def destroy_record(record, orm_klass); end
 
     ## Return one record by looking up by primary key value

@@ -33,7 +33,6 @@ module OrmMultipersist
     sig { abstract.params(value: T.untyped).void }
     def assign_primary_key_attribute(value); end
 
-
     # Check if the record has been persisted to the back-end
     sig { abstract.returns(T::Boolean) }
     def new_record?; end
@@ -45,11 +44,9 @@ module OrmMultipersist
     # Destroy the record in the persistence back-end
     sig { abstract.void }
     def destroy; end
-
   end
 
-
-  # 
+  #
   # @!method multipersist_entity_klass
   #   @return [Class] The base class that the Entity is mixed into (short-cutting the Backend inheritance)
   #
@@ -89,6 +86,18 @@ module OrmMultipersist
   #     person = @person_klass.new(name: "Jenny")
   #     person.save!  #-> person.id is now populated by database auto_increment
   #
+  # ## Lifecycle Callbacks
+  #
+  #   * `create` - before, around, after creating a record in the persistence
+  #   * `update` - before, around, after updating a record in the persistence
+  #   * `destroy` - before, around, after destroying a record in the persistence
+  #
+  # *NOTE*: You cannot reason about the order of callbacks (around vs. before/after):
+  # you can only assume that the `around` callback will wrap the the time ahead of and after 
+  # the object is persisted.  The ordering of calling before/around and after/around is dependent on
+  # the order of the `set_callback` calls in the Entity class.
+  #
+  #
   module Entity
     extend T::Sig
     extend T::Helpers
@@ -121,11 +130,9 @@ module OrmMultipersist
     def multipersist_entityonly_function(v = 100)
       "hi"
     end
-
   end
 
   module EntityBase
-
     extend T::Sig
     extend T::Helpers
 
@@ -133,7 +140,6 @@ module OrmMultipersist
     def multipersist_entitybase_function
       [multipersist_entityonly_function]
     end
-
 
     requires_ancestor { ActiveModel::Model }
     requires_ancestor { ActiveModel::Attributes }
@@ -143,7 +149,7 @@ module OrmMultipersist
     requires_ancestor { Object }
 
     sig { returns(Hash) }
-    def multipersist_attrs; 
+    def multipersist_attrs
       raise RuntimeError, "something bad happened: multipersist_attrs should be defined when the Entity creates the Entity-Base link (see Entity::included)"
     end
 
@@ -160,10 +166,8 @@ module OrmMultipersist
         base.instance_variable_get(:@multipersist_attrs)
       end
 
-      # define some lifecycle callbacks ()
       T.cast(base, T.class_of(ActiveModel::Validations)).class_eval do
         define_model_callbacks :create
-        define_model_callbacks :save
         define_model_callbacks :update
         define_model_callbacks :destroy
         define_singleton_method(:multipersist_entity_klass) do
@@ -244,7 +248,7 @@ module OrmMultipersist
           T.cast(self.class, EntityBase::ClassMethods).update_record(self)
         end
       else
-        run_callbacks :save do
+        run_callbacks :create do
           validate!
           return true unless changed?
           T.cast(self.class, EntityBase::ClassMethods).create_record(self)
@@ -269,7 +273,7 @@ module OrmMultipersist
           klass.update_record(self)
         end
       else
-        run_callbacks :save do
+        run_callbacks :create do
           return false unless valid?
           return true unless changed?
           begin

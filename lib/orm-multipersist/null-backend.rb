@@ -36,7 +36,7 @@ module OrmMultipersist
     #
     # @abstract
     #
-    sig { override.params(record: IEntity, _orm_klass: T.class_of(Entity)).void }
+    sig { override.params(record: EntityBase, _orm_klass: T.class_of(Entity)).void }
     def create_record(record, _orm_klass)
       record.set_persisted
       nil
@@ -47,7 +47,7 @@ module OrmMultipersist
     #
     # @abstract
     #
-    sig { override.params(record: IEntity, _orm_klass: T.class_of(Entity)).void }
+    sig { override.params(record: EntityBase, _orm_klass: T.class_of(Entity)).void }
     def update_record(record, _orm_klass)
       record.set_persisted
       nil
@@ -59,7 +59,7 @@ module OrmMultipersist
     # @abstract
     #
     # rubocop:disable Lint/UnusedMethodArgument
-    sig { override.params(record: IEntity, _orm_klass: T.class_of(Entity)).void }
+    sig { override.params(record: EntityBase, _orm_klass: T.class_of(Entity)).void }
     def destroy_record(record, _orm_klass)
       nil
     end
