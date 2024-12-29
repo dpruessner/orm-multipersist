@@ -6,9 +6,12 @@ gemspec
 
 gem 'activesupport', '~> 7.0'
 gem 'activemodel', '~> 7.0'
-gem 'sequel', '~> 5'
 gem 'sorbet-runtime', '~> 0.5'
-gem 'sqlite3', '~> 2.2'
+
+group :test do
+  gem 'sequel', '~> 5'
+  gem 'sqlite3', '~> 2.2'
+end
 
 group :development do
   gem 'awesome_print'

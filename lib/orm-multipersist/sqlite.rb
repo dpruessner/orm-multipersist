@@ -3,6 +3,7 @@ require_relative "entity"
 require_relative "backend"
 require_relative "recordset"
 
+begin
 require "sqlite3"
 require "sequel"
 
@@ -459,4 +460,8 @@ module OrmMultipersist
       end
     end
   end
+end
+
+rescue LoadError
+  warn "sequel or sqlite3 not available; SqliteBackend not loaded"
 end

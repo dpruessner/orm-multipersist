@@ -23,16 +23,17 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"] = "https://github.com/dpruessner/orm-multipersist/CHANGELOG.md"
 
   # Required Ruby version
-  spec.required_ruby_version = ">= 3.0.0"
+  spec.required_ruby_version = "~> 3.0"
 
   # Add dependencies here
-  spec.add_dependency "activemodel", ">= 7.2.0"
-  spec.add_dependency "sequel", ">= 5.8"
-  spec.add_dependency "sqlite3", ">= 2.1"
+  spec.add_dependency "activemodel", "~> 7.2.0"
+
+  spec.add_development_dependency "sequel", "~> 5.8"
+  spec.add_development_dependency "sqlite3", "~> 2.1"
 
   # Development dependencies
-  spec.add_development_dependency "rspec", ">= 3.10"
-  spec.add_development_dependency "rubocop", ">= 1.0"
+  spec.add_development_dependency "rspec", "~> 3.10"
+  spec.add_development_dependency "rubocop", "~> 1.0"
 
   # Gem executables (if any)
   # spec.executables = ["bin/orm-multipersist"]
